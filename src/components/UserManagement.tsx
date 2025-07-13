@@ -25,9 +25,11 @@ export function UserManagement() {
         description: 'O cargo do usuário foi alterado com sucesso',
       })
     } catch (error) {
+      console.error('Erro detalhado:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao atualizar cargo'
       toast({
         title: 'Erro',
-        description: 'Erro ao atualizar cargo do usuário',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {

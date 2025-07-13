@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin } from "@/hooks/useUserRole";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,13 +23,14 @@ interface AppLayoutProps {
 const menuItems = [
   { id: "dashboard", label: "Dashboard da Bolsa", icon: BarChart3 },
   { id: "carteira", label: "Minha Carteira", icon: Wallet },
-  { id: "admin", label: "Painel Admin", icon: Shield },
+  { id: "admin", label: "Painel Admin", icon: Shield, adminOnly: true },
   { id: "profile", label: "Perfil", icon: User },
 ];
 
 export function AppLayout({ children, currentPage, onPageChange, onLogout }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
 
   const handleLogout = async () => {
     try {
@@ -38,6 +40,14 @@ export function AppLayout({ children, currentPage, onPageChange, onLogout }: App
       console.error('Erro ao fazer logout:', error);
     }
   };
+
+  // Filtrar itens do menu baseado no cargo do usuário
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.adminOnly) {
+      return isAdmin === true;
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,7 +80,11 @@ export function AppLayout({ children, currentPage, onPageChange, onLogout }: App
             >
               <User />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+            >
               <LogOut />
             </Button>
           </div>
@@ -85,7 +99,7 @@ export function AppLayout({ children, currentPage, onPageChange, onLogout }: App
           "fixed lg:static z-40"
         )}>
           <nav className="p-4 space-y-2">
-            {menuItems.map((item) => {
+            {filteredMenuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Button

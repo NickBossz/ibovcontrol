@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import { AppLayout } from "@/components/AppLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { CarteiraPage } from "@/components/CarteiraPage";
@@ -9,7 +10,15 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
   const [currentPage, setCurrentPage] = useState("dashboard");
+
+  // Redirecionar usuários não-admin que tentem acessar a página admin
+  useEffect(() => {
+    if (!isAdminLoading && currentPage === "admin" && isAdmin !== true) {
+      setCurrentPage("dashboard");
+    }
+  }, [isAdmin, isAdminLoading, currentPage]);
 
   const renderCurrentPage = () => {
     switch (currentPage) {

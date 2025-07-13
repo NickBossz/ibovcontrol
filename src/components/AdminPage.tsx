@@ -210,21 +210,7 @@ export function AdminPage() {
   }
 
   if (!userIsAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <Shield className="h-12 w-12 text-muted-foreground mx-auto" />
-              <h3 className="text-lg font-semibold">Acesso Negado</h3>
-              <p className="text-muted-foreground">
-                Você não tem permissão de administrador para acessar esta área
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
 
   return (

@@ -49,23 +49,62 @@ export const isUserClient = async (): Promise<boolean> => {
 // Função para atualizar o cargo de um usuário (apenas admins)
 export const updateUserRole = async (userId: string, newRole: UserRole): Promise<boolean> => {
   try {
+    console.log('Iniciando atualização de cargo:', { userId, newRole })
+    
     // Verificar se o usuário atual é admin
     const isAdmin = await isUserAdmin()
+    console.log('Usuário atual é admin?', isAdmin)
+    
     if (!isAdmin) {
       throw new Error('Apenas administradores podem alterar cargos')
     }
 
-    // Atualizar o cargo usando a função do Supabase
-    const { data, error } = await supabase.rpc('update_user_role', {
-      target_user_id: userId,
-      new_role: newRole
-    })
-
-    if (error) {
-      throw error
+    // Verificar se os parâmetros são válidos
+    if (!userId || !newRole) {
+      throw new Error('Parâmetros inválidos: userId e newRole são obrigatórios')
     }
 
-    return data
+    if (!['cliente', 'admin'].includes(newRole)) {
+      throw new Error('Cargo inválido. Use "cliente" ou "admin"')
+    }
+
+    console.log('Chamando função RPC update_user_role...')
+    
+    // Tentar primeiro com a função principal
+    try {
+      const { data, error } = await supabase.rpc('update_user_role', {
+        target_user_id: userId,
+        new_role: newRole
+      })
+
+      console.log('Resposta da função RPC principal:', { data, error })
+
+      if (error) {
+        console.error('Erro na função RPC principal:', error)
+        throw error
+      }
+
+      console.log('Cargo atualizado com sucesso usando função principal:', data)
+      return data
+    } catch (primaryError) {
+      console.log('Função principal falhou, tentando função alternativa...')
+      
+      // Se a função principal falhar, tentar com a função alternativa
+      const { data, error } = await supabase.rpc('update_user_role_simple', {
+        target_user_id: userId,
+        new_role: newRole
+      })
+
+      console.log('Resposta da função RPC alternativa:', { data, error })
+
+      if (error) {
+        console.error('Erro na função RPC alternativa:', error)
+        throw new Error(`Erro do Supabase: ${error.message}`)
+      }
+
+      console.log('Cargo atualizado com sucesso usando função alternativa:', data)
+      return data
+    }
   } catch (error) {
     console.error('Erro ao atualizar cargo do usuário:', error)
     throw error

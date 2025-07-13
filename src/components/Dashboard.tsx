@@ -30,7 +30,6 @@ import { useSuportesResistencias } from "@/hooks/useSuportesResistencias";
 import { useToast } from "@/hooks/use-toast";
 import { Ativo } from "@/services/googleSheets";
 import { SuporteResistenciaCard } from "./SuporteResistenciaCard";
-import { AtivoCard } from "@/components/ui/ativo-card";
 
 export function Dashboard() {
   const { data: planilhaData, isLoading, error, refetch } = usePlanilhaData();
@@ -329,9 +328,8 @@ export function Dashboard() {
               )}
             </div>
           ) : (
-            // Visualização em Tabela Melhorada
+            // Visualização em Tabela Real
             <div className="space-y-4">
-              {/* Lista de ativos */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="flex items-center space-x-2">
@@ -340,22 +338,82 @@ export function Dashboard() {
                   </div>
                 </div>
               ) : ativosComSuportes.length > 0 ? (
-                <div className="grid gap-4">
-                  {ativosComSuportes.map((ativo) => {
-                    const suporteResistencia = ativo.suporteResistencia;
-                    const priceStatus = suporteResistencia ? 
-                      (ativo.precoAtual < (suporteResistencia.suporte1 || 0) ? 'below-support' :
-                       ativo.precoAtual > (suporteResistencia.resistencia1 || 0) ? 'above-resistance' : 'neutral') : 'neutral';
-                    
-                    return (
-                      <AtivoCard
-                        key={ativo.sigla}
-                        ativo={ativo}
-                        suporteResistencia={suporteResistencia}
-                        priceStatus={priceStatus}
-                      />
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 font-medium text-sm">Ativo</th>
+                        <th className="text-left p-3 font-medium text-sm">Referência</th>
+                        <th className="text-right p-3 font-medium text-sm">Preço Atual</th>
+                        <th className="text-right p-3 font-medium text-sm">Variação</th>
+                        <th className="text-right p-3 font-medium text-sm">Volume</th>
+                        <th className="text-right p-3 font-medium text-sm">Valor Mercado</th>
+                        <th className="text-center p-3 font-medium text-sm">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ativosComSuportes.map((ativo) => {
+                        const suporteResistencia = ativo.suporteResistencia;
+                        const priceStatus = suporteResistencia ? 
+                          (ativo.precoAtual < (suporteResistencia.suporte1 || 0) ? 'below-support' :
+                           ativo.precoAtual > (suporteResistencia.resistencia1 || 0) ? 'above-resistance' : 'neutral') : 'neutral';
+                        
+                        return (
+                          <tr key={ativo.sigla} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                  {ativo.sigla.slice(0, 2)}
+                                </div>
+                                <div>
+                                  <div className="font-semibold">{ativo.sigla}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-sm text-muted-foreground">
+                              {ativo.referencia}
+                            </td>
+                            <td className="p-3 text-right font-medium">
+                              {formatCurrency(ativo.precoAtual)}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className={cn(
+                                "font-medium",
+                                ativo.variacaoPercentual >= 0 ? "text-financial-gain" : "text-financial-loss"
+                              )}>
+                                {ativo.variacaoPercentual >= 0 ? '+' : ''}{ativo.variacaoPercentual.toFixed(2)}%
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatCurrency(ativo.variacao)}
+                              </div>
+                            </td>
+                            <td className="p-3 text-right text-sm">
+                              {formatVolume(ativo.volume)}
+                            </td>
+                            <td className="p-3 text-right text-sm">
+                              {formatCurrency(ativo.valorMercado)}
+                            </td>
+                            <td className="p-3 text-center">
+                              {suporteResistencia ? (
+                                <Badge 
+                                  variant={priceStatus === 'below-support' ? 'destructive' : 
+                                          priceStatus === 'above-resistance' ? 'destructive' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {priceStatus === 'below-support' ? 'Abaixo S1' :
+                                   priceStatus === 'above-resistance' ? 'Acima R1' : 'Neutro'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  Sem Níveis
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="text-center py-8">

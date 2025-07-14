@@ -50,17 +50,32 @@ export const useAddAtivoToCarteira = () => {
   
   return useMutation({
     mutationFn: async (ativo: {
+      id?: string
       ativo_codigo: string
       quantidade: number
       preco_medio: number
       data_compra: string
+      update?: boolean
     }) => {
       if (!user?.id) throw new Error('Usuário não autenticado')
-      
-      return await addAtivoToCarteira({
-        user_id: user.id,
-        ...ativo
-      })
+      if (ativo.update && ativo.id) {
+        // Atualização
+        return await updateAtivoInCarteira(ativo.id, {
+          ativo_codigo: ativo.ativo_codigo,
+          quantidade: ativo.quantidade,
+          preco_medio: ativo.preco_medio,
+          data_compra: ativo.data_compra,
+        })
+      } else {
+        // Inserção
+        return await addAtivoToCarteira({
+          user_id: user.id,
+          ativo_codigo: ativo.ativo_codigo,
+          quantidade: ativo.quantidade,
+          preco_medio: ativo.preco_medio,
+          data_compra: ativo.data_compra,
+        })
+      }
     },
     onSuccess: () => {
       // Invalidar queries relacionadas à carteira

@@ -33,6 +33,7 @@ import { useSuportesResistencias } from "@/hooks/useSuportesResistencias";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Ativo } from "@/services/googleSheets";
+import { Dialog as Modal, DialogContent as ModalContent, DialogHeader as ModalHeader, DialogTitle as ModalTitle, DialogTrigger as ModalTrigger } from "@/components/ui/dialog";
 
 export function CarteiraPage() {
   const { user } = useAuth();
@@ -52,6 +53,26 @@ export function CarteiraPage() {
     data_compra: new Date().toISOString().split('T')[0]
   });
   const [selectedAtivo, setSelectedAtivo] = useState<Ativo | null>(null);
+  const [modalEntradasOpen, setModalEntradasOpen] = useState(false);
+  const [ativoEntradas, setAtivoEntradas] = useState<string | null>(null);
+
+  // Função para buscar todas as entradas de um ativo
+  const entradasAtivo = carteira && ativoEntradas
+    ? carteira.filter((a) => a.ativo_codigo === ativoEntradas)
+    : [];
+
+  // Corrigir o cálculo do preço médio consolidado:
+  const calcularPrecoMedio = (entradas) => {
+    if (!entradas || entradas.length === 0) return "";
+    
+    const somaProduto = entradas.reduce((acc, e) => acc + e.quantidade * e.preco_medio, 0);
+    const somaQuantidade = entradas.reduce((acc, e) => acc + e.quantidade, 0);
+  
+    return somaQuantidade === 0 ? "" : somaProduto / somaQuantidade;
+  };
+  
+  
+  const precoMedioConsolidado = calcularPrecoMedio(entradasAtivo);
 
   const handleAddAtivo = async () => {
     if (!selectedAtivo || !newAtivo.quantidade || !newAtivo.preco_medio) {
@@ -64,18 +85,48 @@ export function CarteiraPage() {
     }
 
     try {
-      await addAtivoMutation.mutateAsync({
-        ativo_codigo: selectedAtivo.sigla,
-        quantidade: parseFloat(newAtivo.quantidade),
-        preco_medio: parseFloat(newAtivo.preco_medio),
-        data_compra: newAtivo.data_compra
-      });
+      // Verifica se o ativo já existe na carteira
+      const ativoExistente = carteira?.find(
+        (a) => a.ativo_codigo === selectedAtivo.sigla
+      );
+
+      let quantidadeTotal = parseFloat(newAtivo.quantidade);
+      let precoMedioFinal = parseFloat(newAtivo.preco_medio);
+
+      if (ativoExistente) {
+        // Se já existe, calcula o novo preço médio
+        const quantidadeAnterior = ativoExistente.quantidade;
+        const precoMedioAnterior = ativoExistente.preco_medio;
+        quantidadeTotal = quantidadeAnterior + parseFloat(newAtivo.quantidade);
+        precoMedioFinal =
+          (quantidadeAnterior * precoMedioAnterior +
+            parseFloat(newAtivo.quantidade) * parseFloat(newAtivo.preco_medio)) /
+          quantidadeTotal;
+
+        // Atualiza o ativo existente
+        await addAtivoMutation.mutateAsync({
+          id: ativoExistente.id,
+          ativo_codigo: selectedAtivo.sigla,
+          quantidade: quantidadeTotal,
+          preco_medio: precoMedioFinal,
+          data_compra: newAtivo.data_compra,
+          update: true, // flag para indicar update
+        });
+      } else {
+        // Se não existe, adiciona normalmente
+        await addAtivoMutation.mutateAsync({
+          ativo_codigo: selectedAtivo.sigla,
+          quantidade: quantidadeTotal,
+          preco_medio: precoMedioFinal,
+          data_compra: newAtivo.data_compra,
+        });
+      }
 
       setNewAtivo({
         ativo_codigo: '',
         quantidade: '',
         preco_medio: '',
-        data_compra: new Date().toISOString().split('T')[0]
+        data_compra: new Date().toISOString().split('T')[0],
       });
       setSelectedAtivo(null);
       setIsAddDialogOpen(false);
@@ -267,9 +318,10 @@ export function CarteiraPage() {
           </CardContent>
         </Card>
 
+        {/* Novo Card: Total Gasto */}
         <Card className="bg-gradient-card shadow-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Investido</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Gasto</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -283,14 +335,14 @@ export function CarteiraPage() {
                 <div className="text-2xl font-bold">
                   {(() => {
                     if (!carteira) return formatCurrency(0);
-                    const totalInvested = carteira.reduce((sum, ativo) => {
+                    const totalGasto = carteira.reduce((sum, ativo) => {
                       return sum + (ativo.quantidade * ativo.preco_medio);
                     }, 0);
-                    return formatCurrency(totalInvested);
+                    return formatCurrency(totalGasto);
                   })()}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Capital investido
+                  Soma de todas as compras realizadas
                 </p>
               </>
             )}
@@ -337,7 +389,8 @@ export function CarteiraPage() {
                       return sum + (ativo.quantidade * currentPrice);
                     }, 0);
                     const totalReturn = totalValue - totalInvested;
-                    return formatCurrency(totalReturn);
+                    const returnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+                    return formatPercent(returnPercent);
                   })()}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -476,9 +529,9 @@ export function CarteiraPage() {
                     totalReturn >= 0 ? "border-l-4 border-l-green-500" : "border-l-4 border-l-red-500"
                   )}>
                     <CardContent className="p-4">
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 items-center">
                         {/* Ativo */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-1">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                               {ativo.ativo_codigo.slice(0, 2)}
@@ -492,60 +545,61 @@ export function CarteiraPage() {
                           </div>
                         </div>
 
-                        {/* Quantidade e Preço Médio */}
-                        <div className="lg:col-span-2">
+                        {/* Quantidade */}
+                        <div className="lg:col-span-1">
                           <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Quantidade</div>
+                            <div className="text-sm text-muted-foreground">Qtd</div>
                             <div className="font-semibold text-lg">{ativo.quantidade}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Média: {formatCurrency(ativo.preco_medio)}
-                            </div>
+                          </div>
+                        </div>
+
+                        {/* Preço Médio */}
+                        <div className="lg:col-span-1">
+                          <div className="space-y-1">
+                            <div className="text-sm text-muted-foreground">Média</div>
+                            <div className="font-semibold text-lg">{formatCurrency(ativo.preco_medio)}</div>
                           </div>
                         </div>
 
                         {/* Preço Atual */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-1">
                           <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Preço Atual</div>
-                            <div className="text-xl font-bold">{formatCurrency(currentPrice)}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Total: {formatCurrency(totalValue)}
-                            </div>
+                            <div className="text-sm text-muted-foreground">Atual</div>
+                            <div className="font-semibold text-lg">{formatCurrency(currentPrice)}</div>
+                          </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="lg:col-span-1">
+                          <div className="space-y-1">
+                            <div className="text-sm text-muted-foreground">Total</div>
+                            <div className="font-semibold text-lg">{formatCurrency(totalValue)}</div>
                           </div>
                         </div>
 
                         {/* Retorno */}
-                        <div className="lg:col-span-3">
+                        <div className="lg:col-span-1">
                           <div className="space-y-1">
                             <div className="text-sm text-muted-foreground">Retorno</div>
-                            <div className="flex items-center gap-2">
-                              {totalReturn >= 0 ? (
-                                <TrendingUpIcon className="h-5 w-5 text-financial-gain" />
-                              ) : (
-                                <TrendingDownIcon className="h-5 w-5 text-financial-loss" />
-                              )}
-                              <div>
-                                <div className={cn(
-                                  "text-lg font-bold",
-                                  totalReturn >= 0 ? "text-financial-gain" : "text-financial-loss"
-                                )}>
-                                  {formatCurrency(totalReturn)}
-                                </div>
-                                <div className={cn(
-                                  "text-sm",
-                                  totalReturn >= 0 ? "text-financial-gain" : "text-financial-loss"
-                                )}>
-                                  {formatPercent(returnPercent)}
-                                </div>
-                              </div>
+                            <div className={cn(
+                              "font-semibold text-lg",
+                              totalReturn >= 0 ? "text-financial-gain" : "text-financial-loss"
+                            )}>
+                              {formatCurrency(totalReturn)}
+                            </div>
+                            <div className={cn(
+                              "text-sm",
+                              totalReturn >= 0 ? "text-financial-gain" : "text-financial-loss"
+                            )}>
+                              {formatPercent(returnPercent)}
                             </div>
                           </div>
                         </div>
 
                         {/* Data Compra */}
-                        <div className="lg:col-span-2">
+                        <div className="lg:col-span-1">
                           <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Data Compra</div>
+                            <div className="text-sm text-muted-foreground">Compra</div>
                             <div className="font-medium">{formatDate(ativo.data_compra)}</div>
                           </div>
                         </div>
@@ -569,6 +623,59 @@ export function CarteiraPage() {
                                 <Trash2 className="h-4 w-4" />
                               )}
                             </Button>
+                            {/* Modal de Entradas do Ativo */}
+                            <Modal>
+                              <ModalTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setAtivoEntradas(ativo.ativo_codigo)}
+                                >
+                                  Ver Entradas
+                                </Button>
+                              </ModalTrigger>
+                              <ModalContent>
+                                <ModalHeader>
+                                  <ModalTitle>Entradas de {ativo.ativo_codigo}</ModalTitle>
+                                </ModalHeader>
+                                <div className="space-y-4">
+                                  {carteira && carteira.filter((a) => a.ativo_codigo === ativo.ativo_codigo).length === 0 ? (
+                                    <div className="text-center text-muted-foreground">Nenhuma entrada encontrada.</div>
+                                  ) : (
+                                    (() => {
+                                      const entradasAtivo = carteira.filter((a) => a.ativo_codigo === ativo.ativo_codigo);
+                                      const precoMedioConsolidado = calcularPrecoMedio(entradasAtivo);
+                                      return (
+                                        <>
+                                          <table className="w-full text-sm">
+                                            <thead>
+                                              <tr>
+                                                <th className="text-left p-2">Quantidade</th>
+                                                <th className="text-left p-2">Preço</th>
+                                                <th className="text-left p-2">Data</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {entradasAtivo.map((entrada) => (
+                                                <tr key={entrada.id}>
+                                                  <td className="p-2">{entrada.quantidade}</td>
+                                                  <td className="p-2">{formatCurrency(entrada.preco_medio)}</td>
+                                                  <td className="p-2">{formatDate(entrada.data_compra)}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                          <div className="pt-4 text-right">
+                                            <span className="font-medium">Preço Médio Consolidado: </span>
+                                            <span>{precoMedioConsolidado === "" ? "-" : formatCurrency(precoMedioConsolidado)}</span>
+                                          </div>
+                                        </>
+                                      );
+                                    })()
+                                  )}
+                                </div>
+                              </ModalContent>
+                            </Modal>
                           </div>
                         </div>
                       </div>

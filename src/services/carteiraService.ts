@@ -5,12 +5,7 @@ type CarteiraRow = Database['public']['Tables']['carteira']['Row']
 type CarteiraInsert = Database['public']['Tables']['carteira']['Insert']
 type CarteiraUpdate = Database['public']['Tables']['carteira']['Update']
 
-type OperacaoRow = Database['public']['Tables']['carteira_operacoes']['Row']
-type OperacaoInsert = Database['public']['Tables']['carteira_operacoes']['Insert']
-type OperacaoUpdate = Database['public']['Tables']['carteira_operacoes']['Update']
-
 export type AtivoCarteira = CarteiraRow
-export type OperacaoCarteira = OperacaoRow
 
 export interface CarteiraStats {
   totalInvested: number
@@ -169,125 +164,128 @@ export const fetchAtivoFromCarteira = async (
   }
 } 
 
-// Adicionar operação (entrada ou saída)
-export const addOperacaoCarteira = async (operacao: OperacaoInsert): Promise<OperacaoCarteira> => {
+// Tipos para operações
+export type OperacaoCarteira = {
+  id?: string;
+  user_id: string;
+  ativo_codigo: string;
+  tipo_operacao: 'entrada' | 'saida';
+  quantidade: number;
+  preco: number;
+  data_operacao: string;
+  created_at?: string;
+};
+
+// Adicionar operação
+export const addOperacaoCarteira = async (operacao: OperacaoCarteira): Promise<OperacaoCarteira> => {
+  const { data, error } = await supabase
+    .from('carteira_operacoes')
+    .insert(operacao)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Buscar operações de um ativo
+export const fetchOperacoesCarteira = async (userId: string, ativoCodigo?: string): Promise<OperacaoCarteira[]> => {
+  let query = supabase
+    .from('carteira_operacoes')
+    .select('*')
+    .eq('user_id', userId);
+  
+  if (ativoCodigo) {
+    query = query.eq('ativo_codigo', ativoCodigo);
+  }
+  
+  const { data, error } = await query.order('data_operacao', { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+// Calcular posição atual do ativo baseado nas operações
+export const calcularPosicaoAtivo = async (userId: string, ativoCodigo: string) => {
   try {
     const { data, error } = await supabase
-      .from('carteira_operacoes')
-      .insert(operacao)
-      .select()
-      .single()
+      .rpc('calcular_posicao_ativo', {
+        p_user_id: userId,
+        p_ativo_codigo: ativoCodigo
+      });
 
-    if (error) {
-      throw error
-    }
-
-    return data
+    if (error) throw error;
+    return data?.[0] || { quantidade_total: 0, preco_medio: 0, valor_investido: 0 };
   } catch (error) {
-    console.error('Erro ao adicionar operação à carteira:', error)
-    throw error
+    console.error('Erro ao calcular posição do ativo:', error);
+    throw error;
   }
-}
+};
 
-// Buscar todas as operações de um usuário
-export const fetchOperacoesCarteira = async (userId: string): Promise<OperacaoCarteira[]> => {
+// Buscar resumo da carteira baseado nas operações
+export const fetchCarteiraFromOperacoes = async (userId: string): Promise<AtivoCarteira[]> => {
   try {
-    const { data, error } = await supabase
-      .from('carteira_operacoes')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      throw error
-    }
-
-    return data || []
-  } catch (error) {
-    console.error('Erro ao buscar operações da carteira:', error)
-    throw error
-  }
-}
-
-// Buscar operações de um ativo específico
-export const fetchOperacoesAtivo = async (
-  userId: string, 
-  ativoCodigo: string
-): Promise<OperacaoCarteira[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('carteira_operacoes')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('ativo_codigo', ativoCodigo.toUpperCase())
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      throw error
-    }
-
-    return data || []
-  } catch (error) {
-    console.error('Erro ao buscar operações do ativo:', error)
-    throw error
-  }
-}
-
-// Calcular posição consolidada de um ativo
-export const calcularPosicaoAtivo = (operacoes: OperacaoCarteira[]) => {
-  let quantidadeTotal = 0
-  let valorTotalEntradas = 0
-  let quantidadeEntradas = 0
-
-  operacoes.forEach(op => {
-    if (op.tipo_operacao === 'entrada') {
-      quantidadeTotal += op.quantidade
-      valorTotalEntradas += op.quantidade * op.preco_operacao
-      quantidadeEntradas += op.quantidade
-    } else if (op.tipo_operacao === 'saida') {
-      quantidadeTotal -= op.quantidade
-    }
-  })
-
-  const precoMedio = quantidadeEntradas > 0 ? valorTotalEntradas / quantidadeEntradas : 0
-
-  return {
-    quantidadeTotal,
-    precoMedio,
-    valorTotalEntradas,
-    quantidadeEntradas
-  }
-}
-
-// Buscar posições consolidadas de todos os ativos do usuário
-export const fetchPosicoesConsolidadas = async (userId: string) => {
-  try {
-    const operacoes = await fetchOperacoesCarteira(userId)
+    const operacoes = await fetchOperacoesCarteira(userId);
+    const ativosUnicos = [...new Set(operacoes.map(op => op.ativo_codigo))];
     
-    // Agrupar operações por ativo
-    const operacoesPorAtivo = operacoes.reduce((acc, op) => {
-      if (!acc[op.ativo_codigo]) {
-        acc[op.ativo_codigo] = []
+    const carteiraCalculada: AtivoCarteira[] = [];
+    
+    for (const ativoCodigo of ativosUnicos) {
+      const posicao = await calcularPosicaoAtivo(userId, ativoCodigo);
+      
+      if (posicao.quantidade_total > 0) {
+        // Buscar a primeira operação para usar como data de compra
+        const primeiraOperacao = operacoes
+          .filter(op => op.ativo_codigo === ativoCodigo && op.tipo_operacao === 'entrada')
+          .sort((a, b) => new Date(a.data_operacao).getTime() - new Date(b.data_operacao).getTime())[0];
+        
+        carteiraCalculada.push({
+          id: `calc_${ativoCodigo}`,
+          user_id: userId,
+          ativo_codigo: ativoCodigo,
+          quantidade: posicao.quantidade_total,
+          preco_medio: posicao.preco_medio,
+          data_compra: primeiraOperacao?.data_operacao || new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
       }
-      acc[op.ativo_codigo].push(op)
-      return acc
-    }, {} as Record<string, OperacaoCarteira[]>)
-
-    // Calcular posição consolidada para cada ativo
-    const posicoes = Object.entries(operacoesPorAtivo).map(([ativoCodigo, ops]) => {
-      const posicao = calcularPosicaoAtivo(ops)
-      return {
-        ativo_codigo: ativoCodigo,
-        quantidade: posicao.quantidadeTotal,
-        preco_medio: posicao.precoMedio,
-        valor_total: posicao.valorTotalEntradas,
-        operacoes: ops
-      }
-    }).filter(pos => pos.quantidade > 0) // Apenas ativos com posição positiva
-
-    return posicoes
+    }
+    
+    return carteiraCalculada;
   } catch (error) {
-    console.error('Erro ao calcular posições consolidadas:', error)
-    throw error
+    console.error('Erro ao calcular carteira das operações:', error);
+    throw error;
   }
-} 
+};
+
+// Remover operação
+export const removeOperacaoCarteira = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('carteira_operacoes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Erro ao remover operação:', error);
+    throw error;
+  }
+};
+
+// Atualizar operação
+export const updateOperacaoCarteira = async (id: string, updates: Partial<OperacaoCarteira>): Promise<OperacaoCarteira> => {
+  try {
+    const { data, error } = await supabase
+      .from('carteira_operacoes')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Erro ao atualizar operação:', error);
+    throw error;
+  }
+}; 

@@ -679,20 +679,13 @@ $_$;
 
 CREATE FUNCTION public.handle_new_user() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-
-BEGIN
-
-  UPDATE auth.users
-
-  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}')::jsonb || jsonb_build_object('role', 'cliente')
-
-  WHERE id = NEW.id;
-
-  RETURN NEW;
-
-END;
-
+    AS $$
+BEGIN
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}')::jsonb || jsonb_build_object('role', 'cliente')
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
 $$;
 
 
@@ -702,20 +695,13 @@ $$;
 
 CREATE FUNCTION public.is_admin(user_id uuid DEFAULT auth.uid()) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-
-BEGIN
-
-  RETURN EXISTS (
-
-    SELECT 1 FROM auth.users
-
-    WHERE id = user_id AND raw_user_meta_data->>'role' = 'admin'
-
-  );
-
-END;
-
+    AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM auth.users
+    WHERE id = user_id AND raw_user_meta_data->>'role' = 'admin'
+  );
+END;
 $$;
 
 
@@ -725,32 +711,19 @@ $$;
 
 CREATE FUNCTION public.list_users() RETURNS TABLE(id uuid, email character varying, role text, created_at timestamp with time zone, last_sign_in_at timestamp with time zone)
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-
-BEGIN
-
-  -- Retornar lista de usuários sem verificação (funciona no SQL Editor e para admins)
-
-  RETURN QUERY
-
-  SELECT 
-
-    au.id,
-
-    au.email,
-
-    COALESCE(au.raw_user_meta_data->>'role', 'cliente') as role,
-
-    au.created_at,
-
-    au.last_sign_in_at
-
-  FROM auth.users au
-
-  ORDER BY au.created_at DESC;
-
-END;
-
+    AS $$
+BEGIN
+  -- Retornar lista de usuários sem verificação (funciona no SQL Editor e para admins)
+  RETURN QUERY
+  SELECT 
+    au.id,
+    au.email,
+    COALESCE(au.raw_user_meta_data->>'role', 'cliente') as role,
+    au.created_at,
+    au.last_sign_in_at
+  FROM auth.users au
+  ORDER BY au.created_at DESC;
+END;
 $$;
 
 
@@ -760,16 +733,11 @@ $$;
 
 CREATE FUNCTION public.update_timestamp() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-
-BEGIN
-
-  NEW.updated_at = NOW();
-
-  RETURN NEW;
-
-END;
-
+    AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
 $$;
 
 
@@ -779,146 +747,76 @@ $$;
 
 CREATE FUNCTION public.update_user_role(target_user_id uuid, new_role text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-
-DECLARE
-
-  current_user_id uuid;
-
-  user_exists boolean;
-
-BEGIN
-
-  -- Obter o ID do usuário atual
-
-  current_user_id := auth.uid();
-
-  
-
-  -- Verificar se o usuário atual existe
-
-  IF current_user_id IS NULL THEN
-
-    RAISE EXCEPTION 'Usuário não autenticado';
-
-  END IF;
-
-
-
-  -- Verificar se o usuário atual é admin
-
-  IF NOT public.is_admin() THEN
-
-    RAISE EXCEPTION 'Apenas administradores podem alterar cargos';
-
-  END IF;
-
-
-
-  -- Verificar se o cargo é válido
-
-  IF new_role NOT IN ('cliente', 'admin') THEN
-
-    RAISE EXCEPTION 'Cargo inválido. Use "cliente" ou "admin"';
-
-  END IF;
-
-
-
-  -- Verificar se o usuário alvo existe
-
-  SELECT EXISTS(SELECT 1 FROM auth.users WHERE id = target_user_id) INTO user_exists;
-
-  IF NOT user_exists THEN
-
-    RAISE EXCEPTION 'Usuário alvo não encontrado';
-
-  END IF;
-
-
-
-  -- Verificar se não está tentando alterar o próprio cargo
-
-  IF current_user_id = target_user_id THEN
-
-    RAISE EXCEPTION 'Não é possível alterar o próprio cargo';
-
-  END IF;
-
-
-
-  -- Tentar atualizar usando user_metadata primeiro
-
-  BEGIN
-
-    UPDATE auth.users 
-
-    SET user_metadata = jsonb_set(
-
-      COALESCE(user_metadata, '{}'::jsonb),
-
-      '{role}',
-
-      to_jsonb(new_role)
-
-    )
-
-    WHERE id = target_user_id;
-
-    
-
-    IF FOUND THEN
-
-      RETURN TRUE;
-
-    END IF;
-
-  EXCEPTION
-
-    WHEN undefined_column THEN
-
-      -- Se user_metadata não existe, tentar com raw_user_meta_data
-
-      UPDATE auth.users 
-
-      SET raw_user_meta_data = jsonb_set(
-
-        COALESCE(raw_user_meta_data, '{}'::jsonb),
-
-        '{role}',
-
-        to_jsonb(new_role)
-
-      )
-
-      WHERE id = target_user_id;
-
-      
-
-      IF FOUND THEN
-
-        RETURN TRUE;
-
-      END IF;
-
-  END;
-
-
-
-  RETURN FALSE;
-
-EXCEPTION
-
-  WHEN OTHERS THEN
-
-    -- Log do erro para debug
-
-    RAISE LOG 'Erro em update_user_role: %', SQLERRM;
-
-    RAISE;
-
-END;
-
+    AS $$
+DECLARE
+  current_user_id uuid;
+  user_exists boolean;
+BEGIN
+  -- Obter o ID do usuário atual
+  current_user_id := auth.uid();
+  
+  -- Verificar se o usuário atual existe
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não autenticado';
+  END IF;
+
+  -- Verificar se o usuário atual é admin
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Apenas administradores podem alterar cargos';
+  END IF;
+
+  -- Verificar se o cargo é válido
+  IF new_role NOT IN ('cliente', 'admin') THEN
+    RAISE EXCEPTION 'Cargo inválido. Use "cliente" ou "admin"';
+  END IF;
+
+  -- Verificar se o usuário alvo existe
+  SELECT EXISTS(SELECT 1 FROM auth.users WHERE id = target_user_id) INTO user_exists;
+  IF NOT user_exists THEN
+    RAISE EXCEPTION 'Usuário alvo não encontrado';
+  END IF;
+
+  -- Verificar se não está tentando alterar o próprio cargo
+  IF current_user_id = target_user_id THEN
+    RAISE EXCEPTION 'Não é possível alterar o próprio cargo';
+  END IF;
+
+  -- Tentar atualizar usando user_metadata primeiro
+  BEGIN
+    UPDATE auth.users 
+    SET user_metadata = jsonb_set(
+      COALESCE(user_metadata, '{}'::jsonb),
+      '{role}',
+      to_jsonb(new_role)
+    )
+    WHERE id = target_user_id;
+    
+    IF FOUND THEN
+      RETURN TRUE;
+    END IF;
+  EXCEPTION
+    WHEN undefined_column THEN
+      -- Se user_metadata não existe, tentar com raw_user_meta_data
+      UPDATE auth.users 
+      SET raw_user_meta_data = jsonb_set(
+        COALESCE(raw_user_meta_data, '{}'::jsonb),
+        '{role}',
+        to_jsonb(new_role)
+      )
+      WHERE id = target_user_id;
+      
+      IF FOUND THEN
+        RETURN TRUE;
+      END IF;
+  END;
+
+  RETURN FALSE;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log do erro para debug
+    RAISE LOG 'Erro em update_user_role: %', SQLERRM;
+    RAISE;
+END;
 $$;
 
 
@@ -935,78 +833,42 @@ COMMENT ON FUNCTION public.update_user_role(target_user_id uuid, new_role text) 
 
 CREATE FUNCTION public.update_user_role_simple(target_user_id uuid, new_role text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-
-BEGIN
-
-  -- Verificar se o usuário atual é admin
-
-  IF NOT public.is_admin() THEN
-
-    RETURN FALSE;
-
-  END IF;
-
-
-
-  -- Tentar atualizar usando user_metadata primeiro
-
-  BEGIN
-
-    UPDATE auth.users 
-
-    SET user_metadata = jsonb_set(
-
-      COALESCE(user_metadata, '{}'::jsonb),
-
-      '{role}',
-
-      to_jsonb(new_role)
-
-    )
-
-    WHERE id = target_user_id;
-
-    
-
-    IF FOUND THEN
-
-      RETURN TRUE;
-
-    END IF;
-
-  EXCEPTION
-
-    WHEN undefined_column THEN
-
-      -- Se user_metadata não existe, tentar com raw_user_meta_data
-
-      UPDATE auth.users 
-
-      SET raw_user_meta_data = jsonb_set(
-
-        COALESCE(raw_user_meta_data, '{}'::jsonb),
-
-        '{role}',
-
-        to_jsonb(new_role)
-
-      )
-
-      WHERE id = target_user_id;
-
-      
-
-      RETURN FOUND;
-
-  END;
-
-
-
-  RETURN FALSE;
-
-END;
-
+    AS $$
+BEGIN
+  -- Verificar se o usuário atual é admin
+  IF NOT public.is_admin() THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Tentar atualizar usando user_metadata primeiro
+  BEGIN
+    UPDATE auth.users 
+    SET user_metadata = jsonb_set(
+      COALESCE(user_metadata, '{}'::jsonb),
+      '{role}',
+      to_jsonb(new_role)
+    )
+    WHERE id = target_user_id;
+    
+    IF FOUND THEN
+      RETURN TRUE;
+    END IF;
+  EXCEPTION
+    WHEN undefined_column THEN
+      -- Se user_metadata não existe, tentar com raw_user_meta_data
+      UPDATE auth.users 
+      SET raw_user_meta_data = jsonb_set(
+        COALESCE(raw_user_meta_data, '{}'::jsonb),
+        '{role}',
+        to_jsonb(new_role)
+      )
+      WHERE id = target_user_id;
+      
+      RETURN FOUND;
+  END;
+
+  RETURN FALSE;
+END;
 $$;
 
 
@@ -2426,8 +2288,7 @@ CREATE TABLE public.carteira (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT carteira_preco_medio_check CHECK ((preco_medio > (0)::numeric)),
-    CONSTRAINT carteira_quantidade_check CHECK ((quantidade > 0)),
-    tipo text DEFAULT 'posicao' CHECK (tipo IN ('posicao', 'inativo'))
+    CONSTRAINT carteira_quantidade_check CHECK ((quantidade > 0))
 );
 
 
@@ -2447,25 +2308,6 @@ CREATE TABLE public.suportes_resistencias (
     ultima_modificacao timestamp with time zone DEFAULT now(),
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
-);
-
-
---
--- Name: carteira_operacoes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.carteira_operacoes (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
-    ativo_codigo text NOT NULL,
-    tipo_operacao text NOT NULL CHECK (tipo_operacao IN ('entrada', 'saida')),
-    quantidade integer NOT NULL,
-    preco_operacao numeric(10,2) NOT NULL,
-    data_operacao date NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT carteira_operacoes_preco_check CHECK ((preco_operacao > (0)::numeric)),
-    CONSTRAINT carteira_operacoes_quantidade_check CHECK ((quantidade > 0))
 );
 
 
@@ -2821,14 +2663,6 @@ ALTER TABLE ONLY public.carteira
 
 ALTER TABLE ONLY public.suportes_resistencias
     ADD CONSTRAINT suportes_resistencias_pkey PRIMARY KEY (id);
-
-
---
--- Name: carteira_operacoes carteira_operacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.carteira_operacoes
-    ADD CONSTRAINT carteira_operacoes_pkey PRIMARY KEY (id);
 
 
 --
@@ -3268,6 +3102,13 @@ CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_patter
 
 
 --
+-- Name: users on_auth_user_created; Type: TRIGGER; Schema: auth; Owner: -
+--
+
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+--
 -- Name: carteira set_updated_at_carteira; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3279,13 +3120,6 @@ CREATE TRIGGER set_updated_at_carteira BEFORE UPDATE ON public.carteira FOR EACH
 --
 
 CREATE TRIGGER set_updated_at_suportes BEFORE UPDATE ON public.suportes_resistencias FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-
-
---
--- Name: carteira_operacoes set_updated_at_carteira_operacoes; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER set_updated_at_carteira_operacoes BEFORE UPDATE ON public.carteira_operacoes FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
 
 
 --
@@ -3404,14 +3238,6 @@ ALTER TABLE ONLY public.carteira
 
 ALTER TABLE ONLY public.suportes_resistencias
     ADD CONSTRAINT suportes_resistencias_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES auth.users(id) ON DELETE SET NULL;
-
-
---
--- Name: carteira_operacoes carteira_operacoes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.carteira_operacoes
-    ADD CONSTRAINT carteira_operacoes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 
 --
@@ -3636,40 +3462,6 @@ CREATE POLICY update_own ON public.carteira FOR UPDATE USING ((auth.uid() = user
 --
 
 CREATE POLICY view_own ON public.carteira FOR SELECT USING ((auth.uid() = user_id));
-
-
---
--- Name: carteira_operacoes; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.carteira_operacoes ENABLE ROW LEVEL SECURITY;
-
---
--- Name: carteira_operacoes delete_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY delete_own ON public.carteira_operacoes FOR DELETE USING ((auth.uid() = user_id));
-
-
---
--- Name: carteira_operacoes insert_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY insert_own ON public.carteira_operacoes FOR INSERT WITH CHECK ((auth.uid() = user_id));
-
-
---
--- Name: carteira_operacoes update_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY update_own ON public.carteira_operacoes FOR UPDATE USING ((auth.uid() = user_id));
-
-
---
--- Name: carteira_operacoes view_own; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY view_own ON public.carteira_operacoes FOR SELECT USING ((auth.uid() = user_id));
 
 
 --

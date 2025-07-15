@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatVolume } from "@/lib/formatters";
-import { getPriceStatus, getProximityAlert, generateChartData } from "@/lib/technicalAnalysis";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { getPriceStatus, getProximityAlert, generateChartData, generateCandlestickData } from "@/lib/technicalAnalysis";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, ComposedChart, Bar, AreaChart, Area } from 'recharts';
 
 interface SuporteResistencia {
   id: string;
@@ -35,6 +35,7 @@ interface SuporteResistencia {
 interface SuporteResistenciaCardProps {
   suporteResistencia: SuporteResistencia;
   precoAtual: number;
+  precoMedioCarteira?: number;
   variacaoPercentual: number;
   volume: number;
   showChart?: boolean;
@@ -44,6 +45,7 @@ interface SuporteResistenciaCardProps {
 export function SuporteResistenciaCard({ 
   suporteResistencia, 
   precoAtual, 
+  precoMedioCarteira,
   variacaoPercentual, 
   volume, 
   showChart = false,
@@ -58,6 +60,13 @@ export function SuporteResistenciaCard({
     suporteResistencia.suporte2, 
     suporteResistencia.resistencia1, 
     suporteResistencia.resistencia2
+  );
+
+  const candlestickData = generateCandlestickData(
+    precoAtual,
+    precoMedioCarteira || precoAtual,
+    suporteResistencia.suporte1,
+    suporteResistencia.resistencia1
   );
 
   const getStatusColor = () => {
@@ -348,79 +357,311 @@ export function SuporteResistenciaCard({
               </Alert>
             )}
 
-            {/* Gráfico */}
+            {/* Gráfico Candlestick */}
             {showChart && hasValidLevels && (
               <>
                 <Separator />
                 <div>
-                  <h4 className="font-semibold text-lg mb-4">Tendência de Preço</h4>
-                  <div className="h-64">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-lg">Análise Técnica Avançada (60 dias)</h4>
+                    {precoMedioCarteira && (
+                      <div className="text-sm text-muted-foreground">
+                        Preço médio da carteira: <span className="font-semibold">{formatCurrency(precoMedioCarteira)}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Gráfico Principal - Área com OHLC */}
+                  <div className="h-80 mb-4">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
+                      <ComposedChart data={candlestickData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis 
-                          dataKey="x" 
-                          hide 
-                          domain={[0, 19]}
+                          dataKey="date" 
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          tick={{ fontSize: 12 }}
                         />
                         <YAxis 
-                          hide 
-                          domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                          domain={['dataMin - 1', 'dataMax + 1']}
+                          tickFormatter={(value) => formatCurrency(value)}
+                          tick={{ fontSize: 12 }}
                         />
                         <Tooltip 
-                          formatter={(value: number) => [formatCurrency(value), 'Preço']}
-                          labelFormatter={() => ''}
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length > 0) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white border rounded-lg shadow-lg p-3">
+                                  <p className="font-semibold">{new Date(label).toLocaleDateString('pt-BR')}</p>
+                                  <div className="space-y-1 text-sm">
+                                    <p>Abertura: <span className="font-medium">{formatCurrency(data.open)}</span></p>
+                                    <p>Máxima: <span className="font-medium text-green-600">{formatCurrency(data.high)}</span></p>
+                                    <p>Mínima: <span className="font-medium text-red-600">{formatCurrency(data.low)}</span></p>
+                                    <p>Fechamento: <span className="font-medium">{formatCurrency(data.close)}</span></p>
+                                    <p>Volume: <span className="font-medium">{formatVolume(data.volume)}</span></p>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
                         />
+                        
+                        {/* Área de máximas e mínimas */}
+                        <Area
+                          type="monotone"
+                          dataKey="high"
+                          stroke="none"
+                          fill="url(#priceGradient)"
+                          fillOpacity={0.2}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="low"
+                          stroke="none"
+                          fill="#ffffff"
+                          fillOpacity={1}
+                        />
+                        
+                        {/* Linha de fechamento */}
                         <Line 
                           type="monotone" 
-                          dataKey="price" 
+                          dataKey="close" 
                           stroke="#3b82f6" 
                           strokeWidth={2}
                           dot={false}
+                          activeDot={{ r: 5, stroke: '#3b82f6', strokeWidth: 2 }}
+                          name="Preço"
                         />
+
+                        {/* Médias Móveis */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="sma20" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          dot={false}
+                          strokeDasharray="none"
+                          name="SMA 20"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="sma50" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          dot={false}
+                          strokeDasharray="none"
+                          name="SMA 50"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="ema12" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={1.5}
+                          dot={false}
+                          strokeDasharray="4 4"
+                          name="EMA 12"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="ema26" 
+                          stroke="#ec4899" 
+                          strokeWidth={1.5}
+                          dot={false}
+                          strokeDasharray="4 4"
+                          name="EMA 26"
+                        />
+
+                        {/* Bandas de Bollinger */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="bollingerUpper" 
+                          stroke="#6b7280" 
+                          strokeWidth={1}
+                          dot={false}
+                          strokeDasharray="2 2"
+                          name="Bollinger Superior"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="bollingerLower" 
+                          stroke="#6b7280" 
+                          strokeWidth={1}
+                          dot={false}
+                          strokeDasharray="2 2"
+                          name="Bollinger Inferior"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="bollingerMiddle" 
+                          stroke="#9ca3af" 
+                          strokeWidth={1}
+                          dot={false}
+                          strokeDasharray="1 1"
+                          name="Bollinger Média"
+                        />
+
+                        {/* Linhas de referência */}
                         {suporteResistencia.suporte1 && (
                           <ReferenceLine 
                             y={suporteResistencia.suporte1} 
                             stroke="#3b82f6" 
-                            strokeDasharray="3 3"
-                            label="S1"
+                            strokeDasharray="5 5"
+                            strokeWidth={2}
+                            label={{ value: "S1", position: "insideTopRight" }}
                           />
                         )}
                         {suporteResistencia.suporte2 && (
                           <ReferenceLine 
                             y={suporteResistencia.suporte2} 
                             stroke="#1d4ed8" 
-                            strokeDasharray="3 3"
-                            label="S2"
+                            strokeDasharray="5 5"
+                            strokeWidth={2}
+                            label={{ value: "S2", position: "insideTopRight" }}
                           />
                         )}
                         {suporteResistencia.resistencia1 && (
                           <ReferenceLine 
                             y={suporteResistencia.resistencia1} 
                             stroke="#dc2626" 
-                            strokeDasharray="3 3"
-                            label="R1"
+                            strokeDasharray="5 5"
+                            strokeWidth={2}
+                            label={{ value: "R1", position: "insideBottomRight" }}
                           />
                         )}
                         {suporteResistencia.resistencia2 && (
                           <ReferenceLine 
                             y={suporteResistencia.resistencia2} 
                             stroke="#991b1b" 
-                            strokeDasharray="3 3"
-                            label="R2"
+                            strokeDasharray="5 5"
+                            strokeWidth={2}
+                            label={{ value: "R2", position: "insideBottomRight" }}
                           />
                         )}
-                      </LineChart>
+                        {precoMedioCarteira && (
+                          <ReferenceLine 
+                            y={precoMedioCarteira} 
+                            stroke="#f59e0b" 
+                            strokeDasharray="2 2"
+                            strokeWidth={3}
+                            label={{ value: "Preço Médio Carteira", position: "insideTopLeft", style: { fontSize: 12, fontWeight: 'bold' } }}
+                          />
+                        )}
+                      </ComposedChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex justify-center gap-6 text-sm text-muted-foreground mt-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-0.5 bg-blue-500"></div>
-                      <span>Suportes</span>
+
+                  {/* MACD */}
+                  <div className="h-24 mb-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={candlestickData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10 }}
+                          tickFormatter={(value) => value.toFixed(2)}
+                        />
+                        <Bar 
+                          dataKey="macd" 
+                          fill="#6366f1"
+                          opacity={0.7}
+                        />
+                        <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="2 2" />
+                        <Tooltip 
+                          formatter={(value: number) => [value?.toFixed(4), 'MACD']}
+                          labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Volume */}
+                  <div className="h-16">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={candlestickData}>
+                        <XAxis dataKey="date" hide />
+                        <YAxis hide />
+                        <Bar 
+                          dataKey="volume" 
+                          fill="#8884d8" 
+                          opacity={0.6}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [formatVolume(value), 'Volume']}
+                          labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Legenda Completa */}
+                  <div className="space-y-3 mt-4">
+                    {/* Primeira linha - Preços e Médias Móveis Principais */}
+                    <div className="flex justify-center flex-wrap gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-blue-500"></div>
+                        <span className="font-medium">Preço</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-green-500"></div>
+                        <span>SMA 20</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-yellow-500"></div>
+                        <span>SMA 50</span>
+                      </div>
+                      {precoMedioCarteira && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-0.5 bg-orange-500" style={{ borderTop: '2px dashed' }}></div>
+                          <span className="font-medium">Preço Médio Carteira</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-0.5 bg-red-500"></div>
-                      <span>Resistências</span>
+
+                    {/* Segunda linha - EMAs e Bollinger */}
+                    <div className="flex justify-center flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-purple-500" style={{ borderTop: '1px dashed' }}></div>
+                        <span>EMA 12</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-pink-500" style={{ borderTop: '1px dashed' }}></div>
+                        <span>EMA 26</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-gray-500" style={{ borderTop: '1px dotted' }}></div>
+                        <span>Bollinger</span>
+                      </div>
+                    </div>
+
+                    {/* Terceira linha - Suportes e Resistências */}
+                    <div className="flex justify-center flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-blue-600" style={{ borderTop: '2px dashed' }}></div>
+                        <span>Suportes</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-0.5 bg-red-600" style={{ borderTop: '2px dashed' }}></div>
+                        <span>Resistências</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-indigo-500"></div>
+                        <span>MACD</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 opacity-30"></div>
+                        <span>Volume</span>
+                      </div>
                     </div>
                   </div>
                 </div>

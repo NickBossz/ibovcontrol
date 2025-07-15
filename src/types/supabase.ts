@@ -40,7 +40,6 @@ export interface Database {
           quantidade: number
           preco_medio: number
           data_compra: string
-          tipo: string
           created_at: string
           updated_at: string
         }
@@ -51,7 +50,6 @@ export interface Database {
           quantidade: number
           preco_medio: number
           data_compra: string
-          tipo?: string
           created_at?: string
           updated_at?: string
         }
@@ -62,42 +60,6 @@ export interface Database {
           quantidade?: number
           preco_medio?: number
           data_compra?: string
-          tipo?: string
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      carteira_operacoes: {
-        Row: {
-          id: string
-          user_id: string
-          ativo_codigo: string
-          tipo_operacao: string
-          quantidade: number
-          preco_operacao: number
-          data_operacao: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          ativo_codigo: string
-          tipo_operacao: string
-          quantidade: number
-          preco_operacao: number
-          data_operacao: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          ativo_codigo?: string
-          tipo_operacao?: string
-          quantidade?: number
-          preco_operacao?: number
-          data_operacao?: string
           created_at?: string
           updated_at?: string
         }

@@ -42,6 +42,7 @@ import {
 } from "@/hooks/useSuportesResistencias";
 import { type CreateSuporteResistencia, type UpdateSuporteResistencia } from "@/services/suportesResistenciasService";
 import { Ativo } from "@/services/googleSheets";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function AdminPage() {
   const { user } = useAuth();
@@ -59,12 +60,13 @@ export function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<Partial<UpdateSuporteResistencia>>({});
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newSuporteResistencia, setNewSuporteResistencia] = useState({
-    suporte1: '',
-    suporte2: '',
-    resistencia1: '',
-    resistencia2: ''
-  });
+  // Substituir o estado fixo por um array dinâmico
+  const [suportesResistenciasList, setSuportesResistenciasList] = useState([
+    { tipo: 'suporte', valor: '' },
+    { tipo: 'suporte', valor: '' },
+    { tipo: 'resistencia', valor: '' },
+    { tipo: 'resistencia', valor: '' },
+  ]);
   const [selectedAtivo, setSelectedAtivo] = useState<Ativo | null>(null);
 
   // Verificar se o usuário é admin usando o sistema de cargos
@@ -124,6 +126,20 @@ export function AdminPage() {
     }
   };
 
+  // Função para adicionar novo campo
+  const addSuporteResistenciaField = (tipo: 'suporte' | 'resistencia') => {
+    setSuportesResistenciasList(prev => [...prev, { tipo, valor: '' }]);
+  };
+  // Função para remover campo
+  const removeSuporteResistenciaField = (index: number) => {
+    setSuportesResistenciasList(prev => prev.filter((_, i) => i !== index));
+  };
+  // Função para atualizar valor
+  const updateSuporteResistenciaValue = (index: number, valor: string) => {
+    setSuportesResistenciasList(prev => prev.map((item, i) => i === index ? { ...item, valor } : item));
+  };
+
+  // Atualizar handleAdd para enviar todos os valores no campo 'niveis'
   const handleAdd = async () => {
     if (!selectedAtivo) {
       toast({
@@ -134,38 +150,30 @@ export function AdminPage() {
       return;
     }
 
-    try {
-      const newItem: CreateSuporteResistencia = {
-        ativo_codigo: selectedAtivo.sigla,
-        ativo_nome: selectedAtivo.referencia,
-        suporte1: newSuporteResistencia.suporte1 ? parseFloat(newSuporteResistencia.suporte1) : undefined,
-        suporte2: newSuporteResistencia.suporte2 ? parseFloat(newSuporteResistencia.suporte2) : undefined,
-        resistencia1: newSuporteResistencia.resistencia1 ? parseFloat(newSuporteResistencia.resistencia1) : undefined,
-        resistencia2: newSuporteResistencia.resistencia2 ? parseFloat(newSuporteResistencia.resistencia2) : undefined,
-      };
+    // Montar array de níveis válidos
+    const niveis = suportesResistenciasList
+      .filter(item => item.valor !== '' && !isNaN(Number(item.valor)))
+      .map(item => ({ tipo: item.tipo as 'suporte' | 'resistencia', valor: Number(item.valor) }));
 
-      await createSuporteResistencia.mutateAsync(newItem);
-      
-      setNewSuporteResistencia({
-        suporte1: '',
-        suporte2: '',
-        resistencia1: '',
-        resistencia2: ''
-      });
-      setSelectedAtivo(null);
-      setIsAddDialogOpen(false);
+    const newItem = {
+      ativo_codigo: selectedAtivo.sigla,
+      ativo_nome: selectedAtivo.referencia,
+      niveis,
+    };
 
-      toast({
-        title: "Item adicionado",
-        description: "Suporte e resistência adicionados com sucesso",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao adicionar item",
-        variant: "destructive",
-      });
-    }
+    await createSuporteResistencia.mutateAsync(newItem);
+    setSuportesResistenciasList([
+      { tipo: 'suporte', valor: '' },
+      { tipo: 'suporte', valor: '' },
+      { tipo: 'resistencia', valor: '' },
+      { tipo: 'resistencia', valor: '' },
+    ]);
+    setSelectedAtivo(null);
+    setIsAddDialogOpen(false);
+    toast({
+      title: "Item adicionado",
+      description: "Suportes e resistências adicionados com sucesso",
+    });
   };
 
   const filteredData = suportesResistencias?.filter(item =>
@@ -267,52 +275,38 @@ export function AdminPage() {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="suporte1">Suporte 1 (R$)</Label>
-                    <Input
-                      id="suporte1"
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 25.50"
-                      value={newSuporteResistencia.suporte1}
-                      onChange={(e) => setNewSuporteResistencia(prev => ({ ...prev, suporte1: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="suporte2">Suporte 2 (R$)</Label>
-                    <Input
-                      id="suporte2"
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 24.80"
-                      value={newSuporteResistencia.suporte2}
-                      onChange={(e) => setNewSuporteResistencia(prev => ({ ...prev, suporte2: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="resistencia1">Resistência 1 (R$)</Label>
-                    <Input
-                      id="resistencia1"
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 27.20"
-                      value={newSuporteResistencia.resistencia1}
-                      onChange={(e) => setNewSuporteResistencia(prev => ({ ...prev, resistencia1: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="resistencia2">Resistência 2 (R$)</Label>
-                    <Input
-                      id="resistencia2"
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex: 28.10"
-                      value={newSuporteResistencia.resistencia2}
-                      onChange={(e) => setNewSuporteResistencia(prev => ({ ...prev, resistencia2: e.target.value }))}
-                    />
+                {/* Lista dinâmica de suportes e resistências */}
+                <div className="space-y-2">
+                  {suportesResistenciasList.map((item, idx) => {
+                    // Calcular o número correto para cada tipo
+                    const numero = item.tipo === 'suporte'
+                      ? suportesResistenciasList.slice(0, idx + 1).filter(i => i.tipo === 'suporte').length
+                      : suportesResistenciasList.slice(0, idx + 1).filter(i => i.tipo === 'resistencia').length;
+                    return (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Label htmlFor={`sr-${idx}`}>{item.tipo === 'suporte' ? `Suporte` : `Resistência`} {numero}</Label>
+                        <Input
+                          id={`sr-${idx}`}
+                          type="number"
+                          step="0.01"
+                          placeholder={item.tipo === 'suporte' ? 'Ex: 24.80' : 'Ex: 27.20'}
+                          value={item.valor}
+                          onChange={e => updateSuporteResistenciaValue(idx, e.target.value)}
+                          className="w-32"
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeSuporteResistenciaField(idx)} disabled={suportesResistenciasList.length <= 2}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  <div className="flex gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => addSuporteResistenciaField('suporte')}>
+                      <Plus className="mr-2 h-4 w-4" />Adicionar Suporte
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => addSuporteResistenciaField('resistencia')}>
+                      <Plus className="mr-2 h-4 w-4" />Adicionar Resistência
+                    </Button>
                   </div>
                 </div>
                 <div className="flex gap-2 pt-4">
@@ -429,20 +423,32 @@ export function AdminPage() {
                         <div className="lg:col-span-3">
                           <div className="space-y-1">
                             <div className="text-sm text-muted-foreground">Suportes</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <div className="text-xs text-muted-foreground">S1</div>
-                                <div className="text-sm font-medium text-blue-600">
-                                  {formatCurrency(item.suporte1)}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-blue-700 border-blue-200">
+                                  Ver Suportes
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-56">
+                                <div className="space-y-2">
+                                  <div className="font-semibold text-blue-700 mb-2">Níveis de Suporte</div>
+                                  {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
+                                    ? item.niveis.filter(n => n.tipo === 'suporte').map((n, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                          <span>S{idx + 1}</span>
+                                          <span className="font-medium">{formatCurrency(n.valor)}</span>
+                                        </div>
+                                      ))
+                                    : [item.suporte1, item.suporte2].filter(v => v !== null && v !== undefined).map((v, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                          <span>S{idx + 1}</span>
+                                          <span className="font-medium">{formatCurrency(v)}</span>
+                                        </div>
+                                      ))
+                                  )}
                                 </div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">S2</div>
-                                <div className="text-sm font-medium text-blue-600">
-                                  {formatCurrency(item.suporte2)}
-                                </div>
-                              </div>
-                            </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
 
@@ -450,20 +456,32 @@ export function AdminPage() {
                         <div className="lg:col-span-3">
                           <div className="space-y-1">
                             <div className="text-sm text-muted-foreground">Resistências</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <div className="text-xs text-muted-foreground">R1</div>
-                                <div className="text-sm font-medium text-red-600">
-                                  {formatCurrency(item.resistencia1)}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-red-700 border-red-200">
+                                  Ver Resistências
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-56">
+                                <div className="space-y-2">
+                                  <div className="font-semibold text-red-700 mb-2">Níveis de Resistência</div>
+                                  {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
+                                    ? item.niveis.filter(n => n.tipo === 'resistencia').map((n, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                          <span>R{idx + 1}</span>
+                                          <span className="font-medium">{formatCurrency(n.valor)}</span>
+                                        </div>
+                                      ))
+                                    : [item.resistencia1, item.resistencia2].filter(v => v !== null && v !== undefined).map((v, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                          <span>R{idx + 1}</span>
+                                          <span className="font-medium">{formatCurrency(v)}</span>
+                                        </div>
+                                      ))
+                                  )}
                                 </div>
-                              </div>
-                              <div>
-                                <div className="text-xs text-muted-foreground">R2</div>
-                                <div className="text-sm font-medium text-red-600">
-                                  {formatCurrency(item.resistencia2)}
-                                </div>
-                              </div>
-                            </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
 

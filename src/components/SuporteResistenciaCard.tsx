@@ -30,6 +30,7 @@ interface SuporteResistencia {
   resistencia2: number | null;
   ultima_modificacao: string;
   admin_id: string | null;
+  niveis?: { tipo: 'suporte' | 'resistencia'; valor: number; }[];
 }
 
 interface SuporteResistenciaCardProps {
@@ -40,6 +41,14 @@ interface SuporteResistenciaCardProps {
   volume: number;
   showChart?: boolean;
   showAlert?: boolean;
+}
+
+// Função utilitária para calcular distâncias percentuais
+function calcularDistancias(valor: number, precoAtual: number, precoMedio?: number) {
+  return {
+    atual: precoAtual ? (((valor - precoAtual) / precoAtual) * 100).toFixed(2) : '-',
+    medio: precoMedio ? (((valor - precoMedio) / precoMedio) * 100).toFixed(2) : '-',
+  };
 }
 
 export function SuporteResistenciaCard({ 
@@ -54,6 +63,17 @@ export function SuporteResistenciaCard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const priceStatus = getPriceStatus(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
   const proximityAlert = getProximityAlert(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
+  // Antes de gerar o chartData/candlestickData, montar arrays dinâmicos de suportes e resistências
+  let suportes: number[] = [];
+  let resistencias: number[] = [];
+  if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0) {
+    suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
+    resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
+  } else {
+    suportes = [suporteResistencia.suporte1, suporteResistencia.suporte2].filter(v => v !== null && v !== undefined);
+    resistencias = [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
+  }
+
   const chartData = generateChartData(
     precoAtual, 
     suporteResistencia.suporte1, 
@@ -102,8 +122,18 @@ export function SuporteResistenciaCard({
     }
   };
 
-  const hasValidLevels = suporteResistencia.suporte1 && suporteResistencia.resistencia1 && 
-                        !isNaN(suporteResistencia.suporte1) && !isNaN(suporteResistencia.resistencia1);
+  const temSuporteOuResistencia = (() => {
+    let suportes: number[] = [];
+    let resistencias: number[] = [];
+    if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0) {
+      suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
+      resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
+    } else {
+      suportes = [suporteResistencia.suporte1, suporteResistencia.suporte2].filter(v => v !== null && v !== undefined);
+      resistencias = [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
+    }
+    return suportes.length > 0 || resistencias.length > 0;
+  })();
 
   return (
     <>
@@ -169,40 +199,14 @@ export function SuporteResistenciaCard({
             )}
 
             {/* Suportes e Resistências - Versão compacta */}
-            {hasValidLevels ? (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/30 rounded-lg">
-                <div className="text-center">
-                  <h4 className="font-medium text-xs text-blue-700 mb-2 flex items-center justify-center gap-1">
-                    <TrendingDown className="h-3 w-3" />
-                    Suportes
-                  </h4>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">S1</div>
-                    <div className="text-sm font-semibold text-blue-600">{formatCurrency(suporteResistencia.suporte1)}</div>
-                    {suporteResistencia.suporte2 && (
-                      <>
-                        <div className="text-xs text-muted-foreground">S2</div>
-                        <div className="text-sm font-semibold text-blue-600">{formatCurrency(suporteResistencia.suporte2)}</div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <h4 className="font-medium text-xs text-red-700 mb-2 flex items-center justify-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    Resistências
-                  </h4>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">R1</div>
-                    <div className="text-sm font-semibold text-red-600">{formatCurrency(suporteResistencia.resistencia1)}</div>
-                    {suporteResistencia.resistencia2 && (
-                      <>
-                        <div className="text-xs text-muted-foreground">R2</div>
-                        <div className="text-sm font-semibold text-red-600">{formatCurrency(suporteResistencia.resistencia2)}</div>
-                      </>
-                    )}
-                  </div>
-                </div>
+            {temSuporteOuResistencia ? (
+              <div className="flex flex-col items-center justify-center p-3 bg-muted/30 rounded-lg min-h-[48px]">
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-200">
+                  <TrendingDown className="h-3 w-3" />
+                  <TrendingUp className="h-3 w-3" />
+                  Suportes e resistências configurados
+                </span>
+                <span className="text-[11px] text-muted-foreground mt-1">Veja detalhes na análise técnica</span>
               </div>
             ) : (
               <Alert className="bg-muted/30">
@@ -288,77 +292,83 @@ export function SuporteResistenciaCard({
 
             <Separator />
 
-            {/* Suportes e Resistências detalhados */}
-            {hasValidLevels ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg text-blue-700 flex items-center gap-2">
-                    <TrendingDown className="h-5 w-5" />
-                    Níveis de Suporte
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-blue-800">Suporte 1</span>
-                        <span className="text-lg font-bold text-blue-600">{formatCurrency(suporteResistencia.suporte1)}</span>
-                      </div>
-                      <div className="text-sm text-blue-600 mt-1">
-                        Distância: {((suporteResistencia.suporte1! - precoAtual) / precoAtual * 100).toFixed(2)}%
-                      </div>
+            {/* Suportes e Resistências detalhados - dinâmico */}
+            {(() => {
+              let suportes: number[] = [];
+              let resistencias: number[] = [];
+              if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0) {
+                suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
+                resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
+              } else {
+                suportes = [
+                  suporteResistencia.suporte1,
+                  suporteResistencia.suporte2
+                ].filter(v => v !== null && v !== undefined);
+                resistencias = [
+                  suporteResistencia.resistencia1,
+                  suporteResistencia.resistencia2
+                ].filter(v => v !== null && v !== undefined);
+              }
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-lg text-blue-700 flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5" />
+                      Níveis de Suporte
+                    </h4>
+                    <div className="space-y-3">
+                      {suportes.length === 0 && <div className="text-muted-foreground text-sm">Nenhum suporte cadastrado</div>}
+                      {suportes.map((valor, idx) => {
+                        const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
+                        return (
+                          <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-blue-800">Suporte {idx + 1}</span>
+                              <span className="text-lg font-bold text-blue-600">{formatCurrency(valor)}</span>
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              Distância do preço atual: {dist.atual}%
+                            </div>
+                            <div className="text-xs text-blue-500 mt-1">
+                              Distância do preço médio: {dist.medio}%
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {suporteResistencia.suporte2 && (
-                      <div className="p-3 bg-blue-50/50 border border-blue-200/50 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-blue-700">Suporte 2</span>
-                          <span className="text-lg font-bold text-blue-500">{formatCurrency(suporteResistencia.suporte2)}</span>
-                        </div>
-                        <div className="text-sm text-blue-500 mt-1">
-                          Distância: {((suporteResistencia.suporte2 - precoAtual) / precoAtual * 100).toFixed(2)}%
-                        </div>
-                      </div>
-                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-lg text-red-700 flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Níveis de Resistência
+                    </h4>
+                    <div className="space-y-3">
+                      {resistencias.length === 0 && <div className="text-muted-foreground text-sm">Nenhuma resistência cadastrada</div>}
+                      {resistencias.map((valor, idx) => {
+                        const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
+                        return (
+                          <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-red-800">Resistência {idx + 1}</span>
+                              <span className="text-lg font-bold text-red-600">{formatCurrency(valor)}</span>
+                            </div>
+                            <div className="text-xs text-red-600 mt-1">
+                              Distância do preço atual: {dist.atual}%
+                            </div>
+                            <div className="text-xs text-red-500 mt-1">
+                              Distância do preço médio: {dist.medio}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg text-red-700 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Níveis de Resistência
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-red-800">Resistência 1</span>
-                        <span className="text-lg font-bold text-red-600">{formatCurrency(suporteResistencia.resistencia1)}</span>
-                      </div>
-                      <div className="text-sm text-red-600 mt-1">
-                        Distância: {((precoAtual - suporteResistencia.resistencia1!) / precoAtual * 100).toFixed(2)}%
-                      </div>
-                    </div>
-                    {suporteResistencia.resistencia2 && (
-                      <div className="p-3 bg-red-50/50 border border-red-200/50 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-red-700">Resistência 2</span>
-                          <span className="text-lg font-bold text-red-500">{formatCurrency(suporteResistencia.resistencia2)}</span>
-                        </div>
-                        <div className="text-sm text-red-500 mt-1">
-                          Distância: {((precoAtual - suporteResistencia.resistencia2) / precoAtual * 100).toFixed(2)}%
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  Este ativo não possui suportes e resistências configurados pelos administradores.
-                </AlertDescription>
-              </Alert>
-            )}
+              );
+            })()}
 
             {/* Gráfico Candlestick */}
-            {showChart && hasValidLevels && (
+            {showChart && (suportes.length > 0 || resistencias.length > 0) && (
               <>
                 <Separator />
                 <div>
@@ -553,6 +563,14 @@ export function SuporteResistenciaCard({
                             label={{ value: "Preço Médio Carteira", position: "insideTopLeft", style: { fontSize: 12, fontWeight: 'bold' } }}
                           />
                         )}
+                        {/* Linhas de suporte */}
+                        {suportes.map((valor, idx) => (
+                          <ReferenceLine key={`suporte-${idx}`} y={valor} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: `S${idx + 1}`, position: 'right', fill: '#3b82f6', fontSize: 12 }} />
+                        ))}
+                        {/* Linhas de resistência */}
+                        {resistencias.map((valor, idx) => (
+                          <ReferenceLine key={`resistencia-${idx}`} y={valor} stroke="#ef4444" strokeDasharray="3 3" label={{ value: `R${idx + 1}`, position: 'right', fill: '#ef4444', fontSize: 12 }} />
+                        ))}
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>

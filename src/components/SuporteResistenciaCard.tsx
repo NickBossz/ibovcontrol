@@ -206,7 +206,15 @@ export function SuporteResistenciaCard({
                   <TrendingUp className="h-3 w-3" />
                   Suportes e resistências configurados
                 </span>
-                <span className="text-[11px] text-muted-foreground mt-1">Veja detalhes na análise técnica</span>
+                <div className="flex items-center justify-center w-full mt-2">
+                  <span className="flex items-center gap-2 text-[13px] px-3 py-2 rounded-xl bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 text-blue-900 border border-blue-200 shadow-md font-medium text-center">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span>
+                      <b>Suporte:</b> região de possível parada de queda.<br/>
+                      <b>Resistência:</b> região de possível parada de alta.
+                    </span>
+                  </span>
+                </div>
               </div>
             ) : (
               <Alert className="bg-muted/30">
@@ -240,6 +248,13 @@ export function SuporteResistenciaCard({
           </DialogHeader>
           
           <div className="space-y-6">
+            <Alert className="bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm">
+                <b>O que é Suporte?</b> Região de preço onde o ativo tende a parar de cair, pois há maior interesse de compra.<br/>
+                <b>O que é Resistência?</b> Região de preço onde o ativo tende a parar de subir, pois há maior interesse de venda.
+              </AlertDescription>
+            </Alert>
             {/* Header do modal */}
             <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
               <div>

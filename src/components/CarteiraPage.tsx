@@ -655,6 +655,23 @@ export function CarteiraPage() {
                           </div>
                         </div>
 
+                        {/* Discrepância */}
+                        <div className="lg:col-span-1">
+                          <div className="space-y-1">
+                            <div className="text-sm text-muted-foreground">Discrepância</div>
+                            <div className={cn(
+                              "font-semibold text-lg",
+                              currentPrice > ativo.preco_medio ? "text-financial-gain" : "text-financial-loss"
+                            )}>
+                              {(() => {
+                                const diff = ((currentPrice - ativo.preco_medio) / ativo.preco_medio) * 100;
+                                if (!isFinite(diff)) return '-';
+                                return (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Total */}
                         <div className="lg:col-span-1">
                           <div className="space-y-1">

@@ -60,6 +60,7 @@ export function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<Partial<UpdateSuporteResistencia>>({});
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   // Substituir o estado fixo por um array dinâmico
   const [suportesResistenciasList, setSuportesResistenciasList] = useState([
     { tipo: 'suporte', valor: '' },
@@ -68,6 +69,8 @@ export function AdminPage() {
     { tipo: 'resistencia', valor: '' },
   ]);
   const [selectedAtivo, setSelectedAtivo] = useState<Ativo | null>(null);
+  const [editingNiveis, setEditingNiveis] = useState<{ tipo: 'suporte' | 'resistencia', valor: string }[]>([]);
+  const [editingAtivo, setEditingAtivo] = useState<{ sigla: string, referencia: string } | null>(null);
 
   // Verificar se o usuário é admin usando o sistema de cargos
   const userIsAdmin = isAdmin === true;
@@ -76,22 +79,34 @@ export function AdminPage() {
     const item = suportesResistencias?.find(sr => sr.id === id);
     if (item) {
       setEditingId(id);
-      setEditingData({
-        suporte1: item.suporte1 || undefined,
-        suporte2: item.suporte2 || undefined,
-        resistencia1: item.resistencia1 || undefined,
-        resistencia2: item.resistencia2 || undefined
-      });
+      setEditingData({});
+      setEditingAtivo({ sigla: item.ativo_codigo, referencia: item.ativo_nome });
+      setIsEditDialogOpen(true);
+      if (item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0) {
+        setEditingNiveis(item.niveis.map(n => ({ tipo: n.tipo, valor: n.valor.toString() })));
+      } else {
+        // Suporte para registros antigos
+        const niveis: { tipo: 'suporte' | 'resistencia', valor: string }[] = [];
+        if (item.suporte1 !== null && item.suporte1 !== undefined) niveis.push({ tipo: 'suporte', valor: item.suporte1.toString() });
+        if (item.suporte2 !== null && item.suporte2 !== undefined) niveis.push({ tipo: 'suporte', valor: item.suporte2.toString() });
+        if (item.resistencia1 !== null && item.resistencia1 !== undefined) niveis.push({ tipo: 'resistencia', valor: item.resistencia1.toString() });
+        if (item.resistencia2 !== null && item.resistencia2 !== undefined) niveis.push({ tipo: 'resistencia', valor: item.resistencia2.toString() });
+        setEditingNiveis(niveis);
+      }
     }
   };
 
   const handleSave = async (id: string) => {
     try {
-      await updateSuporteResistencia.mutateAsync({ id, data: editingData });
-      
+      const niveis = editingNiveis
+        .filter(item => item.valor !== '' && !isNaN(Number(item.valor)))
+        .map(item => ({ tipo: item.tipo, valor: Number(item.valor) }));
+      await updateSuporteResistencia.mutateAsync({ id, data: { niveis } });
       setEditingId(null);
       setEditingData({});
-      
+      setEditingNiveis([]);
+      setEditingAtivo(null);
+      setIsEditDialogOpen(false);
       toast({
         title: "Alterações salvas",
         description: "Suportes e resistências atualizados com sucesso",
@@ -108,6 +123,9 @@ export function AdminPage() {
   const handleCancel = () => {
     setEditingId(null);
     setEditingData({});
+    setEditingNiveis([]);
+    setEditingAtivo(null);
+    setIsEditDialogOpen(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -139,7 +157,18 @@ export function AdminPage() {
     setSuportesResistenciasList(prev => prev.map((item, i) => i === index ? { ...item, valor } : item));
   };
 
-  // Atualizar handleAdd para enviar todos os valores no campo 'niveis'
+  // Funções para edição dinâmica
+  const addEditingField = (tipo: 'suporte' | 'resistencia') => {
+    setEditingNiveis(prev => [...prev, { tipo, valor: '' }]);
+  };
+  const removeEditingField = (index: number) => {
+    setEditingNiveis(prev => prev.filter((_, i) => i !== index));
+  };
+  const updateEditingValue = (index: number, valor: string) => {
+    setEditingNiveis(prev => prev.map((item, i) => i === index ? { ...item, valor } : item));
+  };
+
+  // Atualizar handleAdd para impedir duplicidade
   const handleAdd = async () => {
     if (!selectedAtivo) {
       toast({
@@ -149,18 +178,24 @@ export function AdminPage() {
       });
       return;
     }
-
+    // Verificação de duplicidade
+    if (suportesResistencias?.some(item => item.ativo_codigo === selectedAtivo.sigla)) {
+      toast({
+        title: "Ativo já cadastrado",
+        description: "Já existe um cadastro de suportes e resistências para este ativo.",
+        variant: "destructive",
+      });
+      return;
+    }
     // Montar array de níveis válidos
     const niveis = suportesResistenciasList
       .filter(item => item.valor !== '' && !isNaN(Number(item.valor)))
       .map(item => ({ tipo: item.tipo as 'suporte' | 'resistencia', valor: Number(item.valor) }));
-
     const newItem = {
       ativo_codigo: selectedAtivo.sigla,
       ativo_nome: selectedAtivo.referencia,
       niveis,
     };
-
     await createSuporteResistencia.mutateAsync(newItem);
     setSuportesResistenciasList([
       { tipo: 'suporte', valor: '' },
@@ -399,137 +434,175 @@ export function AdminPage() {
 
             {/* Lista de itens */}
             {!loadingSuportes && filteredData.length > 0 ? (
-              <div className="grid gap-4">
-                {filteredData.map((item) => (
-                  <Card key={item.id} className="transition-all hover:shadow-md border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-                        {/* Ativo */}
-                        <div className="lg:col-span-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                              {item.ativo_codigo.slice(0, 2)}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-lg">{item.ativo_codigo}</div>
-                              <div className="text-sm text-muted-foreground truncate max-w-32">
-                                {item.ativo_nome}
+              <>
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar Suportes e Resistências</DialogTitle>
+                    </DialogHeader>
+                    {editingAtivo && (
+                      <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="font-medium">{editingAtivo.sigla}</div>
+                        <div className="text-sm text-muted-foreground">{editingAtivo.referencia}</div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {editingNiveis.map((sr, idx) => {
+                        const numero = sr.tipo === 'suporte'
+                          ? editingNiveis.slice(0, idx + 1).filter(i => i.tipo === 'suporte').length
+                          : editingNiveis.slice(0, idx + 1).filter(i => i.tipo === 'resistencia').length;
+                        return (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <Label htmlFor={`edit-sr-${idx}`}>{sr.tipo === 'suporte' ? `Suporte` : `Resistência`} {numero}</Label>
+                            <Input
+                              id={`edit-sr-${idx}`}
+                              type="number"
+                              step="0.01"
+                              placeholder={sr.tipo === 'suporte' ? 'Ex: 24.80' : 'Ex: 27.20'}
+                              value={sr.valor}
+                              onChange={e => updateEditingValue(idx, e.target.value)}
+                              className="w-32"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeEditingField(idx)} disabled={editingNiveis.length <= 2}>
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      <div className="flex gap-2 pt-2">
+                        <Button type="button" variant="outline" onClick={() => addEditingField('suporte')}>
+                          <Plus className="mr-2 h-4 w-4" />Adicionar Suporte
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => addEditingField('resistencia')}>
+                          <Plus className="mr-2 h-4 w-4" />Adicionar Resistência
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-4">
+                      <Button onClick={() => handleSave(editingId!)} className="flex-1">
+                        <Save className="mr-2 h-4 w-4" />Salvar
+                      </Button>
+                      <Button variant="outline" onClick={handleCancel} className="flex-1">
+                        Cancelar
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <div className="grid gap-4">
+                  {filteredData.map((item) => (
+                    <Card key={item.id} className="transition-all hover:shadow-md border-l-4 border-l-blue-500">
+                      <CardContent className="p-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                          {/* Ativo */}
+                          <div className="lg:col-span-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                {item.ativo_codigo.slice(0, 2)}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-lg">{item.ativo_codigo}</div>
+                                <div className="text-sm text-muted-foreground truncate max-w-32">
+                                  {item.ativo_nome}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Suportes */}
-                        <div className="lg:col-span-3">
-                          <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Suportes</div>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="text-blue-700 border-blue-200">
-                                  Ver Suportes
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-56">
-                                <div className="space-y-2">
-                                  <div className="font-semibold text-blue-700 mb-2">Níveis de Suporte</div>
-                                  {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
-                                    ? item.niveis.filter(n => n.tipo === 'suporte').map((n, idx) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                          <span>S{idx + 1}</span>
-                                          <span className="font-medium">{formatCurrency(n.valor)}</span>
-                                        </div>
-                                      ))
-                                    : [item.suporte1, item.suporte2].filter(v => v !== null && v !== undefined).map((v, idx) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                          <span>S{idx + 1}</span>
-                                          <span className="font-medium">{formatCurrency(v)}</span>
-                                        </div>
-                                      ))
-                                  )}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                          {/* Suportes */}
+                          <div className="lg:col-span-3">
+                            <div className="space-y-1">
+                              <div className="text-sm text-muted-foreground">Suportes</div>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="text-blue-700 border-blue-200">
+                                    Ver Suportes
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56">
+                                  <div className="space-y-2">
+                                    <div className="font-semibold text-blue-700 mb-2">Níveis de Suporte</div>
+                                    {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
+                                      ? item.niveis.filter(n => n.tipo === 'suporte').map((n, idx) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span>S{idx + 1}</span>
+                                            <span className="font-medium">{formatCurrency(n.valor)}</span>
+                                          </div>
+                                        ))
+                                      : [item.suporte1, item.suporte2].filter(v => v !== null && v !== undefined).map((v, idx) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span>S{idx + 1}</span>
+                                            <span className="font-medium">{formatCurrency(v)}</span>
+                                          </div>
+                                        ))
+                                    )}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                           </div>
-                        </div>
-
-                        {/* Resistências */}
-                        <div className="lg:col-span-3">
-                          <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Resistências</div>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="text-red-700 border-red-200">
-                                  Ver Resistências
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-56">
-                                <div className="space-y-2">
-                                  <div className="font-semibold text-red-700 mb-2">Níveis de Resistência</div>
-                                  {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
-                                    ? item.niveis.filter(n => n.tipo === 'resistencia').map((n, idx) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                          <span>R{idx + 1}</span>
-                                          <span className="font-medium">{formatCurrency(n.valor)}</span>
-                                        </div>
-                                      ))
-                                    : [item.resistencia1, item.resistencia2].filter(v => v !== null && v !== undefined).map((v, idx) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                          <span>R{idx + 1}</span>
-                                          <span className="font-medium">{formatCurrency(v)}</span>
-                                        </div>
-                                      ))
-                                  )}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                          {/* Resistências */}
+                          <div className="lg:col-span-3">
+                            <div className="space-y-1">
+                              <div className="text-sm text-muted-foreground">Resistências</div>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="text-red-700 border-red-200">
+                                    Ver Resistências
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56">
+                                  <div className="space-y-2">
+                                    <div className="font-semibold text-red-700 mb-2">Níveis de Resistência</div>
+                                    {(item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0
+                                      ? item.niveis.filter(n => n.tipo === 'resistencia').map((n, idx) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span>R{idx + 1}</span>
+                                            <span className="font-medium">{formatCurrency(n.valor)}</span>
+                                          </div>
+                                        ))
+                                      : [item.resistencia1, item.resistencia2].filter(v => v !== null && v !== undefined).map((v, idx) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span>R{idx + 1}</span>
+                                            <span className="font-medium">{formatCurrency(v)}</span>
+                                          </div>
+                                        ))
+                                    )}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                           </div>
-                        </div>
-
-                        {/* Informações */}
-                        <div className="lg:col-span-2">
-                          <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">Última Modificação</div>
-                            <div className="text-sm font-medium">{formatDateTime(item.ultima_modificacao)}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Admin: {item.admin_id || 'N/A'}
+                          {/* Informações */}
+                          <div className="lg:col-span-2">
+                            <div className="space-y-1">
+                              <div className="text-sm text-muted-foreground">Última Modificação</div>
+                              <div className="text-sm font-medium">{formatDateTime(item.ultima_modificacao)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Admin: {item.admin_id || 'N/A'}
+                              </div>
+                            </div>
+                          </div>
+                          {/* Ações */}
+                          <div className="lg:col-span-2">
+                            <div className="flex items-center gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleEdit(item.id)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDelete(item.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         </div>
-
-                        {/* Ações */}
-                        <div className="lg:col-span-2">
-                          <div className="flex items-center gap-2">
-                            {editingId === item.id ? (
-                              <>
-                                <Button size="sm" onClick={() => handleSave(item.id)}>
-                                  <Save className="h-4 w-4" />
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={handleCancel}>
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button variant="outline" size="sm" onClick={() => handleEdit(item.id)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleDelete(item.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : !loadingSuportes ? (
               <div className="text-center py-8">
                 <div className="max-w-md mx-auto">

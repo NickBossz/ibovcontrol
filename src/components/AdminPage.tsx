@@ -289,6 +289,7 @@ export function AdminPage() {
                     value={selectedAtivo?.sigla}
                     onSelect={setSelectedAtivo}
                     placeholder="Buscar por sigla ou nome da empresa..."
+                    excludeSiglas={suportesResistencias?.map(item => item.ativo_codigo) || []}
                   />
                   {selectedAtivo && (
                     <div className="mt-2 p-3 bg-muted/50 rounded-lg">

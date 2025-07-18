@@ -20,6 +20,7 @@ interface AtivoSelectorProps {
   onSelect: (ativo: Ativo) => void;
   placeholder?: string;
   disabled?: boolean;
+  excludeSiglas?: string[];
 }
 
 function formatCurrency(value: number) {
@@ -44,7 +45,7 @@ function formatVolume(value: number) {
   return value.toString();
 }
 
-export function AtivoSelector({ value, onSelect, placeholder = "Buscar ativo...", disabled = false }: AtivoSelectorProps) {
+export function AtivoSelector({ value, onSelect, placeholder = "Buscar ativo...", disabled = false, excludeSiglas = [] }: AtivoSelectorProps) {
   const { data: planilhaData, isLoading } = usePlanilhaData();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,9 +55,10 @@ export function AtivoSelector({ value, onSelect, placeholder = "Buscar ativo..."
 
   // Filtrar ativos baseado no termo de busca
   const filteredAtivos = planilhaData?.ativos
-    .filter(ativo => 
-      ativo.sigla.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ativo.referencia.toLowerCase().includes(searchTerm.toLowerCase())
+    .filter(ativo =>
+      !excludeSiglas.includes(ativo.sigla) &&
+      (ativo.sigla.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ativo.referencia.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .slice(0, 10) || []; // Limitar a 10 resultados
 

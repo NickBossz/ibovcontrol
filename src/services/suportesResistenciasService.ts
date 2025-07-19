@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 export interface NivelSR {
   tipo: 'suporte' | 'resistencia';
   valor: number;
+  motivo?: string;
 }
 
 export interface SuporteResistencia {

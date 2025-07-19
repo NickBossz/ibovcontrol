@@ -30,7 +30,7 @@ interface SuporteResistencia {
   resistencia2: number | null;
   ultima_modificacao: string;
   admin_id: string | null;
-  niveis?: { tipo: 'suporte' | 'resistencia'; valor: number; }[];
+  niveis?: { tipo: 'suporte' | 'resistencia'; valor: number; motivo?: string; }[];
 }
 
 interface SuporteResistenciaCardProps {
@@ -341,6 +341,18 @@ export function SuporteResistenciaCard({
                               <span className="font-medium text-blue-800">Suporte {idx + 1}</span>
                               <span className="text-lg font-bold text-blue-600">{formatCurrency(valor)}</span>
                             </div>
+                            {(() => {
+                              if (!suporteResistencia.niveis) return null;
+                              const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'suporte')[idx];
+                              return nivel && nivel.motivo ? (
+                                <div className="mt-2 w-full">
+                                  <span className="flex items-start gap-2 w-full text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded px-3 py-2 shadow-sm break-words">
+                                    <Info className="h-3 w-3 text-blue-500 flex-shrink-0 mt-0.5" />
+                                    <span className="whitespace-pre-line break-words">{nivel.motivo}</span>
+                                  </span>
+                                </div>
+                              ) : null;
+                            })()}
                             <div className="text-xs text-blue-600 mt-1">
                               Distância do preço atual: {dist.atual}%
                             </div>
@@ -367,6 +379,18 @@ export function SuporteResistenciaCard({
                               <span className="font-medium text-red-800">Resistência {idx + 1}</span>
                               <span className="text-lg font-bold text-red-600">{formatCurrency(valor)}</span>
                             </div>
+                            {(() => {
+                              if (!suporteResistencia.niveis) return null;
+                              const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia')[idx];
+                              return nivel && nivel.motivo ? (
+                                <div className="mt-2 w-full">
+                                  <span className="flex items-start gap-2 w-full text-xs text-red-900 bg-red-50 border border-red-200 rounded px-3 py-2 shadow-sm break-words">
+                                    <Info className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
+                                    <span className="whitespace-pre-line break-words">{nivel.motivo}</span>
+                                  </span>
+                                </div>
+                              ) : null;
+                            })()}
                             <div className="text-xs text-red-600 mt-1">
                               Distância do preço atual: {dist.atual}%
                             </div>

@@ -63,13 +63,13 @@ export function AdminPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   // Substituir o estado fixo por um array dinâmico
   const [suportesResistenciasList, setSuportesResistenciasList] = useState([
-    { tipo: 'suporte', valor: '' },
-    { tipo: 'suporte', valor: '' },
-    { tipo: 'resistencia', valor: '' },
-    { tipo: 'resistencia', valor: '' },
+    { tipo: 'suporte', valor: '', motivo: '' },
+    { tipo: 'suporte', valor: '', motivo: '' },
+    { tipo: 'resistencia', valor: '', motivo: '' },
+    { tipo: 'resistencia', valor: '', motivo: '' },
   ]);
   const [selectedAtivo, setSelectedAtivo] = useState<Ativo | null>(null);
-  const [editingNiveis, setEditingNiveis] = useState<{ tipo: 'suporte' | 'resistencia', valor: string }[]>([]);
+  const [editingNiveis, setEditingNiveis] = useState<{ tipo: 'suporte' | 'resistencia', valor: string, motivo?: string }[]>([]);
   const [editingAtivo, setEditingAtivo] = useState<{ sigla: string, referencia: string } | null>(null);
 
   // Verificar se o usuário é admin usando o sistema de cargos
@@ -83,7 +83,7 @@ export function AdminPage() {
       setEditingAtivo({ sigla: item.ativo_codigo, referencia: item.ativo_nome });
       setIsEditDialogOpen(true);
       if (item.niveis && Array.isArray(item.niveis) && item.niveis.length > 0) {
-        setEditingNiveis(item.niveis.map(n => ({ tipo: n.tipo, valor: n.valor.toString() })));
+        setEditingNiveis(item.niveis.map(n => ({ tipo: n.tipo, valor: n.valor.toString(), motivo: n.motivo || '' })));
       } else {
         // Suporte para registros antigos
         const niveis: { tipo: 'suporte' | 'resistencia', valor: string }[] = [];
@@ -100,7 +100,7 @@ export function AdminPage() {
     try {
       const niveis = editingNiveis
         .filter(item => item.valor !== '' && !isNaN(Number(item.valor)))
-        .map(item => ({ tipo: item.tipo, valor: Number(item.valor) }));
+        .map(item => ({ tipo: item.tipo, valor: Number(item.valor), motivo: item.motivo || '' }));
       await updateSuporteResistencia.mutateAsync({ id, data: { niveis } });
       setEditingId(null);
       setEditingData({});
@@ -146,7 +146,7 @@ export function AdminPage() {
 
   // Função para adicionar novo campo
   const addSuporteResistenciaField = (tipo: 'suporte' | 'resistencia') => {
-    setSuportesResistenciasList(prev => [...prev, { tipo, valor: '' }]);
+    setSuportesResistenciasList(prev => [...prev, { tipo, valor: '', motivo: '' }]);
   };
   // Função para remover campo
   const removeSuporteResistenciaField = (index: number) => {
@@ -155,6 +155,9 @@ export function AdminPage() {
   // Função para atualizar valor
   const updateSuporteResistenciaValue = (index: number, valor: string) => {
     setSuportesResistenciasList(prev => prev.map((item, i) => i === index ? { ...item, valor } : item));
+  };
+  const updateSuporteResistenciaMotivo = (index: number, motivo: string) => {
+    setSuportesResistenciasList(prev => prev.map((item, i) => i === index ? { ...item, motivo } : item));
   };
 
   // Funções para edição dinâmica
@@ -166,6 +169,9 @@ export function AdminPage() {
   };
   const updateEditingValue = (index: number, valor: string) => {
     setEditingNiveis(prev => prev.map((item, i) => i === index ? { ...item, valor } : item));
+  };
+  const updateEditingMotivo = (index: number, motivo: string) => {
+    setEditingNiveis(prev => prev.map((item, i) => i === index ? { ...item, motivo } : item));
   };
 
   // Atualizar handleAdd para impedir duplicidade
@@ -190,7 +196,7 @@ export function AdminPage() {
     // Montar array de níveis válidos
     const niveis = suportesResistenciasList
       .filter(item => item.valor !== '' && !isNaN(Number(item.valor)))
-      .map(item => ({ tipo: item.tipo as 'suporte' | 'resistencia', valor: Number(item.valor) }));
+      .map(item => ({ tipo: item.tipo as 'suporte' | 'resistencia', valor: Number(item.valor), motivo: item.motivo || '' }));
     const newItem = {
       ativo_codigo: selectedAtivo.sigla,
       ativo_nome: selectedAtivo.referencia,
@@ -198,10 +204,10 @@ export function AdminPage() {
     };
     await createSuporteResistencia.mutateAsync(newItem);
     setSuportesResistenciasList([
-      { tipo: 'suporte', valor: '' },
-      { tipo: 'suporte', valor: '' },
-      { tipo: 'resistencia', valor: '' },
-      { tipo: 'resistencia', valor: '' },
+      { tipo: 'suporte', valor: '', motivo: '' },
+      { tipo: 'suporte', valor: '', motivo: '' },
+      { tipo: 'resistencia', valor: '', motivo: '' },
+      { tipo: 'resistencia', valor: '', motivo: '' },
     ]);
     setSelectedAtivo(null);
     setIsAddDialogOpen(false);
@@ -314,7 +320,6 @@ export function AdminPage() {
                 {/* Lista dinâmica de suportes e resistências */}
                 <div className="space-y-2">
                   {suportesResistenciasList.map((item, idx) => {
-                    // Calcular o número correto para cada tipo
                     const numero = item.tipo === 'suporte'
                       ? suportesResistenciasList.slice(0, idx + 1).filter(i => i.tipo === 'suporte').length
                       : suportesResistenciasList.slice(0, idx + 1).filter(i => i.tipo === 'resistencia').length;
@@ -329,6 +334,14 @@ export function AdminPage() {
                           value={item.valor}
                           onChange={e => updateSuporteResistenciaValue(idx, e.target.value)}
                           className="w-32"
+                        />
+                        <Input
+                          id={`motivo-sr-${idx}`}
+                          type="text"
+                          placeholder="Motivo (ex: fundo anterior, gap, etc)"
+                          value={item.motivo}
+                          onChange={e => updateSuporteResistenciaMotivo(idx, e.target.value)}
+                          className="w-56"
                         />
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeSuporteResistenciaField(idx)} disabled={suportesResistenciasList.length <= 2}>
                           <X className="w-4 h-4" />
@@ -463,6 +476,14 @@ export function AdminPage() {
                               value={sr.valor}
                               onChange={e => updateEditingValue(idx, e.target.value)}
                               className="w-32"
+                            />
+                            <Input
+                              id={`edit-motivo-sr-${idx}`}
+                              type="text"
+                              placeholder="Motivo (ex: fundo anterior, gap, etc)"
+                              value={sr.motivo || ''}
+                              onChange={e => updateEditingMotivo(idx, e.target.value)}
+                              className="w-56"
                             />
                             <Button type="button" variant="ghost" size="icon" onClick={() => removeEditingField(idx)} disabled={editingNiveis.length <= 2}>
                               <X className="w-4 h-4" />

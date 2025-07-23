@@ -182,7 +182,21 @@ export function AtivoSelector({ value, onSelect, placeholder = "Buscar ativo..."
               </div>
             ) : filteredAtivos.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                {searchTerm ? "Nenhum ativo encontrado" : "Digite para buscar ativos"}
+                {searchTerm ? 
+                  (() => {
+                    // Verificar se o termo pesquisado está na lista de exclusão
+                    const ativoExcluido = excludeSiglas.some(sigla => 
+                      sigla.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                    if (ativoExcluido) {
+                      return "Este ativo já está na sua carteira";
+                    }
+                    return "Nenhum ativo encontrado";
+                  })() :
+                  excludeSiglas.length > 0 ? 
+                    "Digite para buscar novos ativos (ativos da carteira não aparecem aqui)" : 
+                    "Digite para buscar ativos"
+                }
               </div>
             ) : (
               <div className="max-h-80 overflow-y-auto">

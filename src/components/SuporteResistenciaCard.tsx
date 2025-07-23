@@ -15,14 +15,13 @@ import {
   Eye,
   Zap,
   LayoutGrid,
-  List
+  List,
+  Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatPercent, formatVolume } from "@/lib/formatters";
+import { formatCurrency, formatPercent } from "@/lib/formatters";
 import { getPriceStatus, getProximityAlert, generateCandlestickData } from "@/lib/technicalAnalysis";
-import Chart from 'react-apexcharts';
-import { ApexOptions } from 'apexcharts';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { TradingViewIframe } from './TradingViewWidget';
 
 interface SuporteResistencia {
   id: string;
@@ -42,7 +41,7 @@ interface SuporteResistenciaCardProps {
   precoAtual: number;
   precoMedioCarteira?: number;
   variacaoPercentual: number;
-  volume: number;
+  quantidade?: number;
   showChart?: boolean;
   showAlert?: boolean;
 }
@@ -65,14 +64,13 @@ export function SuporteResistenciaCard({
   suporteResistencia, 
   precoAtual, 
   precoMedioCarteira,
-  variacaoPercentual, 
-  volume, 
+  variacaoPercentual,
+  quantidade,
   showChart = false,
   showAlert = false 
 }: SuporteResistenciaCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
-  const [useApexCharts, setUseApexCharts] = useState(true);
   const priceStatus = getPriceStatus(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
   const proximityAlert = getProximityAlert(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
   
@@ -86,12 +84,6 @@ export function SuporteResistenciaCard({
     : [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
 
 
-  const candlestickData = generateCandlestickData(
-    precoAtual,
-    precoMedioCarteira || precoAtual,
-    suporteResistencia.suporte1,
-    suporteResistencia.resistencia1
-  );
 
   const getStatusColor = () => {
     switch (priceStatus) {
@@ -302,8 +294,7 @@ export function SuporteResistenciaCard({
             )}
 
             {/* Informações adicionais */}
-            <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t">
-              <span>Volume: {formatVolume(volume)}</span>
+            <div className="flex justify-end items-center text-xs text-muted-foreground pt-2 border-t">
               <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
                 <Eye className="h-3 w-3 mr-1" />
                 Detalhes
@@ -353,10 +344,99 @@ export function SuporteResistenciaCard({
                       </div>
                     </div>
                   )}
-                  <div className="text-sm text-slate-500">Volume: {formatVolume(volume)}</div>
                 </div>
               </div>
             </div>
+
+            {/* Informações da Carteira */}
+            {(quantidade !== undefined && precoMedioCarteira !== undefined) && (
+              <>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    Informações da Carteira
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {/* Quantidade */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Quantidade</div>
+                      <div className="text-lg font-bold text-blue-900">{quantidade}</div>
+                    </div>
+
+                    {/* Preço Médio */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Média</div>
+                      <div className="text-lg font-bold text-blue-900">{formatCurrency(precoMedioCarteira)}</div>
+                    </div>
+
+                    {/* Preço Atual */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Atual</div>
+                      <div className="text-lg font-bold text-blue-900">{formatCurrency(precoAtual)}</div>
+                    </div>
+
+                    {/* Discrepância */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Discrepância</div>
+                      <div className={cn(
+                        "text-lg font-bold",
+                        precoAtual > precoMedioCarteira ? "text-green-600" : "text-red-600"
+                      )}>
+                        {(() => {
+                          const diff = ((precoAtual - precoMedioCarteira) / precoMedioCarteira) * 100;
+                          return (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Total */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Total</div>
+                      <div className="text-lg font-bold text-blue-900">{formatCurrency(quantidade * precoAtual)}</div>
+                    </div>
+
+                    {/* Retorno */}
+                    <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                      <div className="text-xs text-blue-600 font-medium mb-1">Retorno</div>
+                      <div className={cn(
+                        "text-lg font-bold",
+                        (() => {
+                          const totalValue = quantidade * precoAtual;
+                          const totalInvested = quantidade * precoMedioCarteira;
+                          const totalReturn = totalValue - totalInvested;
+                          return totalReturn >= 0 ? "text-green-600" : "text-red-600";
+                        })()
+                      )}>
+                        {(() => {
+                          const totalValue = quantidade * precoAtual;
+                          const totalInvested = quantidade * precoMedioCarteira;
+                          const totalReturn = totalValue - totalInvested;
+                          return formatCurrency(totalReturn);
+                        })()}
+                      </div>
+                      <div className={cn(
+                        "text-xs font-medium",
+                        (() => {
+                          const totalValue = quantidade * precoAtual;
+                          const totalInvested = quantidade * precoMedioCarteira;
+                          const totalReturn = totalValue - totalInvested;
+                          return totalReturn >= 0 ? "text-green-600" : "text-red-600";
+                        })()
+                      )}>
+                        {(() => {
+                          const totalValue = quantidade * precoAtual;
+                          const totalInvested = quantidade * precoMedioCarteira;
+                          const totalReturn = totalValue - totalInvested;
+                          const returnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+                          return formatPercent(returnPercent);
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
 
             {/* Status e alertas */}
             <div className="space-y-4">
@@ -747,450 +827,31 @@ export function SuporteResistenciaCard({
                 </div>
             )}
 
-            {/* Gráfico ApexCharts */}
+            {/* Gráfico TradingView */}
             {showChart && (suportes.length > 0 || resistencias.length > 0) && (
               <>
                 <Separator />
                 <div>
                   <div className="mb-4">
-                    <h4 className="font-semibold text-lg">Gráfico de Análise (60 dias)</h4>
+                    <h4 className="font-semibold text-lg">Gráfico de Análise (TradingView)</h4>
                   </div>
                   
-                  {(() => {
-                    // Verificar se os dados existem
-                    if (!candlestickData || candlestickData.length === 0) {
-                      return (
-                        <div className="flex items-center justify-center h-40 text-muted-foreground">
-                          <p>Dados do gráfico não disponíveis</p>
-                        </div>
-                      );
-                    }
-
-                    // Preparar dados para ApexCharts - Candlestick
-                    const candlestickSeries = [{
-                      name: 'Preço',
-                      data: candlestickData.map(item => ({
-                        x: new Date(item.date).getTime(),
-                        y: [item.open, item.high, item.low, item.close]
-                      }))
-                    }];
-
-                    // Séries para médias móveis
-                    const lineSeries = [
-                      {
-                        name: 'SMA 20',
-                        data: candlestickData.map(item => ({
-                          x: new Date(item.date).getTime(),
-                          y: item.sma20
-                        }))
-                      },
-                      {
-                        name: 'SMA 50',
-                        data: candlestickData.map(item => ({
-                          x: new Date(item.date).getTime(),
-                          y: item.sma50
-                        }))
-                      }
-                    ];
-
-                    // Preparar anotações para suportes e resistências
-                    const annotations = {
-                      yaxis: [
-                        ...suportes.map((valor, idx) => ({
-                          y: valor,
-                          borderColor: '#3b82f6',
-                          strokeDashArray: 5,
-                          label: {
-                            text: `S${idx + 1}`,
-                            style: {
-                              color: '#ffffff',
-                              background: '#3b82f6'
-                            }
-                          }
-                        })),
-                        ...resistencias.map((valor, idx) => ({
-                          y: valor,
-                          borderColor: '#ef4444',
-                          strokeDashArray: 5,
-                          label: {
-                            text: `R${idx + 1}`,
-                            style: {
-                              color: '#ffffff',
-                              background: '#ef4444'
-                            }
-                          }
-                        })),
-                        ...(precoMedioCarteira ? [{
-                          y: precoMedioCarteira,
-                          borderColor: '#f59e0b',
-                          strokeDashArray: 3,
-                          label: {
-                            text: 'Preço Médio',
-                            style: {
-                              color: '#ffffff',
-                              background: '#f59e0b'
-                            }
-                          }
-                        }] : [])
-                      ]
-                    };
-
-                    // Opções do gráfico candlestick
-                    const candlestickOptions: ApexOptions = {
-                      chart: {
-                        type: 'candlestick',
-                        height: 350,
-                        toolbar: {
-                          show: false
-                        },
-                        zoom: {
-                          enabled: true
-                        }
-                      },
-                      title: {
-                        text: `${suporteResistencia.ativo_codigo} - Análise Técnica`,
-                        align: 'left'
-                      },
-                      xaxis: {
-                        type: 'datetime'
-                      },
-                      yaxis: {
-                        tooltip: {
-                          enabled: true
-                        },
-                        labels: {
-                          formatter: (value) => formatCurrency(value)
-                        }
-                      },
-                      plotOptions: {
-                        candlestick: {
-                          colors: {
-                            upward: '#10b981',
-                            downward: '#ef4444'
-                          }
-                        }
-                      },
-                      annotations,
-                      grid: {
-                        borderColor: '#f0f0f0'
-                      }
-                    };
-
-                    // Opções do gráfico de linhas (médias móveis)
-                    const lineOptions: ApexOptions = {
-                      chart: {
-                        type: 'line',
-                        height: 200,
-                        toolbar: {
-                          show: false
-                        }
-                      },
-                      title: {
-                        text: 'Médias Móveis',
-                        style: {
-                          fontSize: '14px'
-                        }
-                      },
-                      xaxis: {
-                        type: 'datetime',
-                        labels: {
-                          show: false
-                        }
-                      },
-                      yaxis: {
-                        labels: {
-                          formatter: (value) => formatCurrency(value)
-                        }
-                      },
-                      stroke: {
-                        curve: 'smooth',
-                        width: 2
-                      },
-                      colors: ['#10b981', '#f59e0b'],
-                      legend: {
-                        show: true
-                      },
-                      grid: {
-                        borderColor: '#f0f0f0'
-                      }
-                    };
-
-                    // Tentar usar ApexCharts, com fallback para Recharts
-                    if (useApexCharts) {
-                      try {
-                        return (
-                          <div className="w-full space-y-4">
-                            {/* Gráfico Candlestick Principal */}
-                            <div>
-                              <Chart
-                                options={candlestickOptions}
-                                series={candlestickSeries}
-                                type="candlestick"
-                                height={350}
-                              />
-                            </div>
-                            
-                            {/* Gráfico de Médias Móveis */}
-                            <div>
-                              <Chart
-                                options={lineOptions}
-                                series={lineSeries}
-                                type="line"
-                                height={200}
-                              />
-                            </div>
-                            
-                            {/* MACD Chart */}
-                            <div>
-                              <Chart
-                                options={{
-                                  chart: {
-                                    type: 'bar',
-                                    height: 120,
-                                    toolbar: { show: false }
-                                  },
-                                  title: {
-                                    text: 'MACD',
-                                    style: { 
-                                      fontSize: '14px',
-                                      color: '#374151',
-                                      fontWeight: 600
-                                    }
-                                  },
-                                  xaxis: {
-                                    type: 'datetime',
-                                    labels: { 
-                                      show: false 
-                                    }
-                                  },
-                                  yaxis: {
-                                    labels: {
-                                      style: {
-                                        colors: '#6b7280',
-                                        fontSize: '10px'
-                                      },
-                                      formatter: (value) => {
-                                        if (Math.abs(value) >= 1000) {
-                                          return (value / 1000).toFixed(1) + 'K';
-                                        }
-                                        return value?.toFixed(2);
-                                      }
-                                    }
-                                  },
-                                  colors: ['#6366f1'],
-                                  plotOptions: {
-                                    bar: {
-                                      columnWidth: '60%'
-                                    }
-                                  },
-                                  grid: {
-                                    borderColor: '#f1f5f9',
-                                    strokeDashArray: 2
-                                  },
-                                  dataLabels: {
-                                    enabled: false
-                                  }
-                                }}
-                                series={[{
-                                  name: 'MACD',
-                                  data: candlestickData.map(item => ({
-                                    x: new Date(item.date).getTime(),
-                                    y: item.macd
-                                  }))
-                                }]}
-                                type="bar"
-                                height={120}
-                              />
-                            </div>
-                            
-                            {/* Volume Chart */}
-                            <div>
-                              <Chart
-                                options={{
-                                  chart: {
-                                    type: 'bar',
-                                    height: 100,
-                                    toolbar: { show: false }
-                                  },
-                                  title: {
-                                    text: 'Volume',
-                                    style: { 
-                                      fontSize: '14px',
-                                      color: '#374151',
-                                      fontWeight: 600
-                                    }
-                                  },
-                                  xaxis: {
-                                    type: 'datetime',
-                                    labels: { 
-                                      show: false 
-                                    }
-                                  },
-                                  yaxis: {
-                                    labels: {
-                                      style: {
-                                        colors: '#6b7280',
-                                        fontSize: '10px'
-                                      },
-                                      formatter: (value) => {
-                                        if (value >= 1000000000) {
-                                          return (value / 1000000000).toFixed(1) + 'B';
-                                        } else if (value >= 1000000) {
-                                          return (value / 1000000).toFixed(1) + 'M';
-                                        } else if (value >= 1000) {
-                                          return (value / 1000).toFixed(1) + 'K';
-                                        }
-                                        return value?.toString();
-                                      }
-                                    }
-                                  },
-                                  colors: ['#10b981'],
-                                  plotOptions: {
-                                    bar: {
-                                      columnWidth: '50%'
-                                    }
-                                  },
-                                  grid: {
-                                    borderColor: '#f1f5f9',
-                                    strokeDashArray: 2
-                                  },
-                                  dataLabels: {
-                                    enabled: false
-                                  }
-                                }}
-                                series={[{
-                                  name: 'Volume',
-                                  data: candlestickData.map(item => ({
-                                    x: new Date(item.date).getTime(),
-                                    y: item.volume
-                                  }))
-                                }]}
-                                type="bar"
-                                height={100}
-                              />
-                            </div>
-                          </div>
-                        );
-                      } catch (error) {
-                        console.error('Erro no ApexCharts, usando Recharts como fallback:', error);
-                        setUseApexCharts(false);
-                      }
-                    }
-
-                    // Fallback com Recharts
-                    return (
-                      <div className="w-full space-y-4">
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={candlestickData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                              <XAxis 
-                                dataKey="date" 
-                                tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                tick={{ fontSize: 12 }}
-                              />
-                              <YAxis 
-                                tickFormatter={(value) => formatCurrency(value)}
-                                tick={{ fontSize: 12 }}
-                              />
-                              <Tooltip 
-                                content={({ active, payload, label }) => {
-                                  if (active && payload && payload.length > 0) {
-                                    const data = payload[0].payload;
-                                    return (
-                                      <div className="bg-white border rounded-lg shadow-lg p-3">
-                                        <p className="font-semibold">{new Date(label).toLocaleDateString('pt-BR')}</p>
-                                        <div className="space-y-1 text-sm">
-                                          <p>Fechamento: <span className="font-medium">{formatCurrency(data.close)}</span></p>
-                                          <p>Volume: <span className="font-medium">{formatVolume(data.volume)}</span></p>
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                }}
-                              />
-                              
-                              {/* Linha de fechamento */}
-                              <Line 
-                                type="monotone" 
-                                dataKey="close" 
-                                stroke="#3b82f6" 
-                                strokeWidth={2}
-                                dot={false}
-                                name="Preço"
-                              />
-                              
-                              {/* Médias Móveis */}
-                              <Line 
-                                type="monotone" 
-                                dataKey="sma20" 
-                                stroke="#10b981" 
-                                strokeWidth={2}
-                                dot={false}
-                                name="SMA 20"
-                              />
-                              <Line 
-                                type="monotone" 
-                                dataKey="sma50" 
-                                stroke="#f59e0b" 
-                                strokeWidth={2}
-                                dot={false}
-                                name="SMA 50"
-                              />
-
-                              {/* Linhas de suporte */}
-                              {suportes.map((valor, idx) => (
-                                <ReferenceLine 
-                                  key={`suporte-${idx}`} 
-                                  y={valor} 
-                                  stroke="#3b82f6" 
-                                  strokeDasharray="3 3" 
-                                  label={{ value: `S${idx + 1}`, position: 'right' }}
-                                />
-                              ))}
-                              
-                              {/* Linhas de resistência */}
-                              {resistencias.map((valor, idx) => (
-                                <ReferenceLine 
-                                  key={`resistencia-${idx}`} 
-                                  y={valor} 
-                                  stroke="#ef4444" 
-                                  strokeDasharray="3 3" 
-                                  label={{ value: `R${idx + 1}`, position: 'right' }}
-                                />
-                              ))}
-                              
-                              {/* Preço médio da carteira */}
-                              {precoMedioCarteira && (
-                                <ReferenceLine 
-                                  y={precoMedioCarteira} 
-                                  stroke="#f59e0b" 
-                                  strokeDasharray="2 2"
-                                  strokeWidth={3}
-                                  label={{ value: "Preço Médio", position: "insideTopLeft" }}
-                                />
-                              )}
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                        
-                        <div className="flex items-center justify-center">
-                          <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                            Usando gráfico de linha simplificado
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  <div className="w-full">
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <TradingViewIframe 
+                        symbol={`BMFBOVESPA:${suporteResistencia.ativo_codigo}`}
+                        theme="light"
+                        height={450}
+                      />
+                    </div>
+                  </div>
                 </div>
               </>
             )}
 
             {/* Informações adicionais */}
             <Separator />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Volume: {formatVolume(volume)}</span>
+            <div className="flex justify-end text-sm text-muted-foreground">
               <span>Atualizado: {new Date().toLocaleTimeString('pt-BR')}</span>
             </div>
           </div>

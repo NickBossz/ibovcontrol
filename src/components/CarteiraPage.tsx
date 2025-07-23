@@ -63,6 +63,15 @@ export function CarteiraPage() {
   // Adicionar estado para modal de operações
   const [modalOperacoesOpen, setModalOperacoesOpen] = useState(false);
   const [ativoOperacoes, setAtivoOperacoes] = useState<string | null>(null);
+  // Estados para modal de nova operação
+  const [isNovaOperacaoOpen, setIsNovaOperacaoOpen] = useState(false);
+  const [ativoOperacao, setAtivoOperacao] = useState<string>('');
+  const [novaOperacao, setNovaOperacao] = useState({
+    quantidade: '',
+    preco: '',
+    data_operacao: new Date().toISOString().split('T')[0],
+    tipo: 'entrada' as 'entrada' | 'saida'
+  });
 
   // Função para buscar todas as entradas de um ativo
   const entradasAtivo = carteira && ativoEntradas
@@ -96,96 +105,45 @@ export function CarteiraPage() {
       const ativoExistente = carteira?.find(
         (a) => a.ativo_codigo === selectedAtivo.sigla
       );
+
+      // Não permitir adicionar o mesmo ativo duas vezes
+      if (ativoExistente) {
+        toast({
+          title: "Ativo já existe",
+          description: "Este ativo já está na sua carteira. Use o botão 'Adicionar Operação' para adicionar mais cotas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const quantidadeOperacao = parseFloat(newAtivo.quantidade);
       const precoOperacao = parseFloat(newAtivo.preco_medio);
       const dataOperacao = newAtivo.data_compra;
       const userId = user?.id;
       if (!userId) return;
 
-      if (tipoOperacao === 'entrada') {
-        let quantidadeTotal = quantidadeOperacao;
-        let precoMedioFinal = precoOperacao;
-        if (ativoExistente) {
-          const quantidadeAnterior = ativoExistente.quantidade;
-          const precoMedioAnterior = ativoExistente.preco_medio;
-          quantidadeTotal = quantidadeAnterior + quantidadeOperacao;
-          precoMedioFinal =
-            (quantidadeAnterior * precoMedioAnterior +
-              quantidadeOperacao * precoOperacao) /
-            quantidadeTotal;
-          await addAtivoMutation.mutateAsync({
-            id: ativoExistente.id,
-            ativo_codigo: selectedAtivo.sigla,
-            quantidade: quantidadeTotal,
-            preco_medio: precoMedioFinal,
-            data_compra: newAtivo.data_compra,
-            update: true,
-          });
-        } else {
-          await addAtivoMutation.mutateAsync({
-            ativo_codigo: selectedAtivo.sigla,
-            quantidade: quantidadeTotal,
-            preco_medio: precoMedioFinal,
-            data_compra: newAtivo.data_compra,
-          });
-        }
-        // Registrar operação de entrada
-        await addOperacaoCarteira.mutateAsync({
-          user_id: userId,
-          ativo_codigo: selectedAtivo.sigla,
-          tipo_operacao: 'entrada',
-          quantidade: quantidadeOperacao,
-          preco: precoOperacao,
-          data_operacao: dataOperacao,
-        });
-        toast({
-          title: "Ativo adicionado",
-          description: "Ativo adicionado à carteira com sucesso",
-        });
-      } else if (tipoOperacao === 'saida') {
-        if (!ativoExistente) {
-          toast({
-            title: "Ativo não encontrado",
-            description: "Você não possui esse ativo na carteira.",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (quantidadeOperacao > ativoExistente.quantidade) {
-          toast({
-            title: "Quantidade insuficiente",
-            description: "Você não possui quantidade suficiente desse ativo para realizar a saída.",
-            variant: "destructive",
-          });
-          return;
-        }
-        const novaQuantidade = ativoExistente.quantidade - quantidadeOperacao;
-        if (novaQuantidade === 0) {
-          await removeAtivoMutation.mutateAsync(ativoExistente.id);
-        } else {
-          await addAtivoMutation.mutateAsync({
-            id: ativoExistente.id,
-            ativo_codigo: selectedAtivo.sigla,
-            quantidade: novaQuantidade,
-            preco_medio: ativoExistente.preco_medio, // não altera preço médio
-            data_compra: ativoExistente.data_compra,
-            update: true,
-          });
-        }
-        // Registrar operação de saída
-        await addOperacaoCarteira.mutateAsync({
-          user_id: userId,
-          ativo_codigo: selectedAtivo.sigla,
-          tipo_operacao: 'saida',
-          quantidade: quantidadeOperacao,
-          preco: precoOperacao,
-          data_operacao: dataOperacao,
-        });
-        toast({
-          title: "Saída realizada",
-          description: "Quantidade removida da carteira com sucesso.",
-        });
-      }
+      // Apenas entrada para novo ativo
+      await addAtivoMutation.mutateAsync({
+        ativo_codigo: selectedAtivo.sigla,
+        quantidade: quantidadeOperacao,
+        preco_medio: precoOperacao,
+        data_compra: newAtivo.data_compra,
+      });
+
+      // Registrar operação de entrada
+      await addOperacaoCarteira.mutateAsync({
+        user_id: userId,
+        ativo_codigo: selectedAtivo.sigla,
+        tipo_operacao: 'entrada',
+        quantidade: quantidadeOperacao,
+        preco: precoOperacao,
+        data_operacao: dataOperacao,
+      });
+
+      toast({
+        title: "Ativo adicionado",
+        description: "Ativo adicionado à carteira com sucesso",
+      });
 
       setNewAtivo({
         ativo_codigo: '',
@@ -198,7 +156,7 @@ export function CarteiraPage() {
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao processar operação na carteira",
+        description: "Erro ao adicionar ativo à carteira",
         variant: "destructive",
       });
     }
@@ -215,6 +173,109 @@ export function CarteiraPage() {
       toast({
         title: "Erro",
         description: "Erro ao remover ativo da carteira",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNovaOperacao = async () => {
+    if (!novaOperacao.quantidade || !novaOperacao.preco) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha quantidade e preço da operação",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const ativoExistente = carteira?.find(a => a.ativo_codigo === ativoOperacao);
+      if (!ativoExistente) {
+        toast({
+          title: "Ativo não encontrado",
+          description: "Ativo não encontrado na carteira",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const quantidadeOperacao = parseFloat(novaOperacao.quantidade);
+      const precoOperacao = parseFloat(novaOperacao.preco);
+      const userId = user?.id;
+      if (!userId) return;
+
+      if (novaOperacao.tipo === 'entrada') {
+        // Calcular novo preço médio e quantidade
+        const quantidadeAnterior = ativoExistente.quantidade;
+        const precoMedioAnterior = ativoExistente.preco_medio;
+        const quantidadeTotal = quantidadeAnterior + quantidadeOperacao;
+        const precoMedioFinal = (quantidadeAnterior * precoMedioAnterior + quantidadeOperacao * precoOperacao) / quantidadeTotal;
+
+        await addAtivoMutation.mutateAsync({
+          id: ativoExistente.id,
+          ativo_codigo: ativoOperacao,
+          quantidade: quantidadeTotal,
+          preco_medio: precoMedioFinal,
+          data_compra: ativoExistente.data_compra,
+          update: true,
+        });
+
+        toast({
+          title: "Operação realizada",
+          description: "Entrada adicionada com sucesso",
+        });
+      } else {
+        // Saída
+        if (quantidadeOperacao > ativoExistente.quantidade) {
+          toast({
+            title: "Quantidade insuficiente",
+            description: "Você não possui quantidade suficiente desse ativo",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const novaQuantidade = ativoExistente.quantidade - quantidadeOperacao;
+        if (novaQuantidade === 0) {
+          await removeAtivoMutation.mutateAsync(ativoExistente.id);
+        } else {
+          await addAtivoMutation.mutateAsync({
+            id: ativoExistente.id,
+            ativo_codigo: ativoOperacao,
+            quantidade: novaQuantidade,
+            preco_medio: ativoExistente.preco_medio,
+            data_compra: ativoExistente.data_compra,
+            update: true,
+          });
+        }
+
+        toast({
+          title: "Operação realizada",
+          description: "Saída realizada com sucesso",
+        });
+      }
+
+      // Registrar operação
+      await addOperacaoCarteira.mutateAsync({
+        user_id: userId,
+        ativo_codigo: ativoOperacao,
+        tipo_operacao: novaOperacao.tipo,
+        quantidade: quantidadeOperacao,
+        preco: precoOperacao,
+        data_operacao: novaOperacao.data_operacao,
+      });
+
+      setNovaOperacao({
+        quantidade: '',
+        preco: '',
+        data_operacao: new Date().toISOString().split('T')[0],
+        tipo: 'entrada'
+      });
+      setIsNovaOperacaoOpen(false);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao processar operação",
         variant: "destructive",
       });
     }
@@ -252,12 +313,12 @@ export function CarteiraPage() {
           <DialogTrigger asChild>
             <Button size="lg" className="sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
-              Adicionar Ativo
+              Novo Ativo
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Adicionar Ativo à Carteira</DialogTitle>
+              <DialogTitle>Adicionar Novo Ativo à Carteira</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -266,6 +327,7 @@ export function CarteiraPage() {
                   value={selectedAtivo?.sigla}
                   onSelect={setSelectedAtivo}
                   placeholder="Buscar por sigla ou nome da empresa..."
+                  excludeSiglas={carteira?.map(ativo => ativo.ativo_codigo) || []}
                 />
                 {selectedAtivo && (
                   <div className="mt-2 p-3 bg-muted/50 rounded-lg">
@@ -310,32 +372,7 @@ export function CarteiraPage() {
                 />
               </div>
               <div>
-                <Label>Tipo de Operação</Label>
-                <div className="flex gap-4 mt-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="tipo_operacao"
-                      value="entrada"
-                      checked={tipoOperacao === 'entrada'}
-                      onChange={() => setTipoOperacao('entrada')}
-                    />
-                    Entrada
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="tipo_operacao"
-                      value="saida"
-                      checked={tipoOperacao === 'saida'}
-                      onChange={() => setTipoOperacao('saida')}
-                    />
-                    Saída
-                  </label>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="data_compra">Data da Operação</Label>
+                <Label htmlFor="data_compra">Data da Compra</Label>
                 <Input
                   id="data_compra"
                   type="date"
@@ -552,7 +589,7 @@ export function CarteiraPage() {
                     precoAtual={ativoAtualizado.precoAtual}
                     precoMedioCarteira={ativo.preco_medio}
                     variacaoPercentual={ativoAtualizado.variacaoPercentual}
-                    volume={ativoAtualizado.volume}
+                    quantidade={ativo.quantidade}
                     showChart={true}
                     showAlert={true}
                   />
@@ -726,6 +763,20 @@ export function CarteiraPage() {
                                 <Trash2 className="h-4 w-4" />
                               )}
                             </Button>
+                            {/* Botão Adicionar Operação */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setAtivoOperacao(ativo.ativo_codigo);
+                                setIsNovaOperacaoOpen(true);
+                              }}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Operação
+                            </Button>
+                            
                             {/* Modal de Operações do Ativo */}
                             <Modal>
                               <ModalTrigger asChild>
@@ -773,6 +824,94 @@ export function CarteiraPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal para Nova Operação */}
+      <Dialog open={isNovaOperacaoOpen} onOpenChange={setIsNovaOperacaoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Operação - {ativoOperacao}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Tipo de Operação</Label>
+              <div className="flex gap-4 mt-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="tipo_nova_operacao"
+                    value="entrada"
+                    checked={novaOperacao.tipo === 'entrada'}
+                    onChange={() => setNovaOperacao(prev => ({ ...prev, tipo: 'entrada' }))}
+                  />
+                  Entrada (Compra)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="tipo_nova_operacao"
+                    value="saida"
+                    checked={novaOperacao.tipo === 'saida'}
+                    onChange={() => setNovaOperacao(prev => ({ ...prev, tipo: 'saida' }))}
+                  />
+                  Saída (Venda)
+                </label>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="nova_quantidade">Quantidade</Label>
+              <Input
+                id="nova_quantidade"
+                type="number"
+                step="0.01"
+                placeholder="Ex: 100"
+                value={novaOperacao.quantidade}
+                onChange={(e) => setNovaOperacao(prev => ({ ...prev, quantidade: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="novo_preco">Preço (R$)</Label>
+              <Input
+                id="novo_preco"
+                type="number"
+                step="0.01"
+                placeholder="Ex: 25.50"
+                value={novaOperacao.preco}
+                onChange={(e) => setNovaOperacao(prev => ({ ...prev, preco: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="nova_data">Data da Operação</Label>
+              <Input
+                id="nova_data"
+                type="date"
+                value={novaOperacao.data_operacao}
+                onChange={(e) => setNovaOperacao(prev => ({ ...prev, data_operacao: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button 
+                onClick={handleNovaOperacao}
+                disabled={addAtivoMutation.isPending}
+                className="flex-1"
+              >
+                {addAtivoMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                {novaOperacao.tipo === 'entrada' ? 'Adicionar Compra' : 'Adicionar Venda'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsNovaOperacaoOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

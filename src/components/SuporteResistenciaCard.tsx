@@ -43,11 +43,17 @@ interface SuporteResistenciaCardProps {
   showAlert?: boolean;
 }
 
-// Função utilitária para calcular distâncias percentuais
+// Função utilitária para calcular distâncias percentuais e absolutas
 function calcularDistancias(valor: number, precoAtual: number, precoMedio?: number) {
   return {
-    atual: precoAtual ? (((valor - precoAtual) / precoAtual) * 100).toFixed(2) : '-',
-    medio: precoMedio ? (((valor - precoMedio) / precoMedio) * 100).toFixed(2) : '-',
+    atual: {
+      percentual: precoAtual ? (((valor - precoAtual) / precoAtual) * 100).toFixed(2) : '-',
+      absoluto: precoAtual ? (valor - precoAtual).toFixed(2) : '-'
+    },
+    medio: {
+      percentual: precoMedio ? (((valor - precoMedio) / precoMedio) * 100).toFixed(2) : '-',
+      absoluto: precoMedio ? (valor - precoMedio).toFixed(2) : '-'
+    }
   };
 }
 
@@ -198,23 +204,93 @@ export function SuporteResistenciaCard({
               </Alert>
             )}
 
-            {/* Suportes e Resistências - Versão compacta */}
+            {/* Preview dos Níveis Técnicos */}
             {temSuporteOuResistencia ? (
-              <div className="flex flex-col items-center justify-center p-3 bg-muted/30 rounded-lg min-h-[48px]">
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-200">
-                  <TrendingDown className="h-3 w-3" />
-                  <TrendingUp className="h-3 w-3" />
-                  Suportes e resistências configurados
-                </span>
-                <div className="flex items-center justify-center w-full mt-2">
-                  <span className="flex items-center gap-2 text-[13px] px-3 py-2 rounded-xl bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 text-blue-900 border border-blue-200 shadow-md font-medium text-center">
-                    <Info className="h-4 w-4 text-blue-500" />
-                    <span>
-                      <b>Suporte:</b> região de possível parada de queda.<br/>
-                      <b>Resistência:</b> região de possível parada de alta.
-                    </span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-200 shadow-sm">
+                    <Target className="h-3 w-3" />
+                    Análise técnica disponível
                   </span>
                 </div>
+                {(() => {
+                  let suportes: number[] = [];
+                  let resistencias: number[] = [];
+                  if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis)) {
+                    suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
+                    resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
+                  } else {
+                    suportes = [suporteResistencia.suporte1, suporteResistencia.suporte2].filter(v => v !== null && v !== undefined);
+                    resistencias = [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
+                  }
+                  
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-blue-700 flex items-center gap-1">
+                          <TrendingDown className="h-3 w-3" />
+                          Suportes
+                        </div>
+                        {suportes.length > 0 ? (
+                          suportes.slice(0, 2).map((valor, idx) => {
+                            const diferencaAbsoluta = valor - precoAtual;
+                            const diferencaPercentual = ((valor - precoAtual) / precoAtual * 100);
+                            return (
+                              <div key={idx} className="bg-blue-50 px-3 py-2 rounded-lg text-xs border border-blue-100">
+                                <div className="font-bold text-blue-800 text-sm">{formatCurrency(valor)}</div>
+                                <div className={cn(
+                                  "font-medium text-xs",
+                                  diferencaAbsoluta < 0 ? "text-green-600" : "text-blue-600"
+                                )}>
+                                  {diferencaAbsoluta >= 0 ? '+' : ''}{formatCurrency(Math.abs(diferencaAbsoluta))}
+                                </div>
+                                <div className={cn(
+                                  "text-xs",
+                                  diferencaPercentual < 0 ? "text-green-600" : "text-blue-600"
+                                )}>
+                                  ({diferencaPercentual >= 0 ? '+' : ''}{diferencaPercentual.toFixed(1)}%)
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-xs text-muted-foreground">Nenhum</div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-red-700 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          Resistências
+                        </div>
+                        {resistencias.length > 0 ? (
+                          resistencias.slice(0, 2).map((valor, idx) => {
+                            const diferencaAbsoluta = valor - precoAtual;
+                            const diferencaPercentual = ((valor - precoAtual) / precoAtual * 100);
+                            return (
+                              <div key={idx} className="bg-red-50 px-3 py-2 rounded-lg text-xs border border-red-100">
+                                <div className="font-bold text-red-800 text-sm">{formatCurrency(valor)}</div>
+                                <div className={cn(
+                                  "font-medium text-xs",
+                                  diferencaAbsoluta > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  {diferencaAbsoluta >= 0 ? '+' : ''}{formatCurrency(Math.abs(diferencaAbsoluta))}
+                                </div>
+                                <div className={cn(
+                                  "text-xs",
+                                  diferencaPercentual > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  ({diferencaPercentual >= 0 ? '+' : ''}{diferencaPercentual.toFixed(1)}%)
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-xs text-muted-foreground">Nenhuma</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <Alert className="bg-muted/30">
@@ -248,26 +324,56 @@ export function SuporteResistenciaCard({
           </DialogHeader>
           
           <div className="space-y-6">
-            <Alert className="bg-blue-50 border-blue-200">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-sm">
-                <b>O que é Suporte?</b> Região de preço onde o ativo tende a parar de cair, pois há maior interesse de compra.<br/>
-                <b>O que é Resistência?</b> Região de preço onde o ativo tende a parar de subir, pois há maior interesse de venda.
-              </AlertDescription>
-            </Alert>
-            {/* Header do modal */}
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div>
-                <h3 className="text-xl font-bold">{suporteResistencia.ativo_codigo}</h3>
-                <p className="text-muted-foreground">{suporteResistencia.ativo_nome}</p>
+            {/* Informação educacional destacada */}
+            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <Info className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-blue-900">Conceitos Fundamentais</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="bg-white/80 p-3 rounded-lg border border-blue-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingDown className="h-4 w-4 text-blue-600" />
+                        <span className="font-semibold text-blue-800">Suporte</span>
+                      </div>
+                      <p className="text-blue-700 leading-relaxed">Região onde o preço tende a parar de cair devido ao aumento do interesse de compra.</p>
+                    </div>
+                    <div className="bg-white/80 p-3 rounded-lg border border-red-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="h-4 w-4 text-red-600" />
+                        <span className="font-semibold text-red-800">Resistência</span>
+                      </div>
+                      <p className="text-red-700 leading-relaxed">Região onde o preço tende a parar de subir devido ao aumento do interesse de venda.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">{formatCurrency(precoAtual)}</div>
-                <div className={cn(
-                  "text-sm font-medium",
-                  variacaoPercentual >= 0 ? "text-financial-gain" : "text-financial-loss"
-                )}>
-                  {formatPercent(variacaoPercentual)}
+            </div>
+            {/* Header melhorado do modal */}
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    {suporteResistencia.ativo_codigo.slice(0, 2)}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900">{suporteResistencia.ativo_codigo}</h3>
+                    <p className="text-slate-600 font-medium">{suporteResistencia.ativo_nome}</p>
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <div className="text-3xl font-bold text-slate-900">{formatCurrency(precoAtual)}</div>
+                  <div className={cn(
+                    "text-lg font-semibold px-3 py-1 rounded-full",
+                    variacaoPercentual >= 0 
+                      ? "text-green-700 bg-green-100" 
+                      : "text-red-700 bg-red-100"
+                  )}>
+                    {variacaoPercentual >= 0 ? '+' : ''}{formatPercent(variacaoPercentual)}
+                  </div>
+                  <div className="text-sm text-slate-500">Volume: {formatVolume(volume)}</div>
                 </div>
               </div>
             </div>
@@ -325,78 +431,206 @@ export function SuporteResistenciaCard({
                 ].filter(v => v !== null && v !== undefined);
               }
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="font-semibold text-lg text-blue-700 flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5" />
-                      Níveis de Suporte
-                    </h4>
-                    <div className="space-y-3">
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                      <h4 className="font-bold text-xl text-blue-800 flex items-center gap-3 mb-4">
+                        <div className="bg-blue-200 p-2 rounded-lg">
+                          <TrendingDown className="h-5 w-5 text-blue-700" />
+                        </div>
+                        Níveis de Suporte
+                      </h4>
+                    </div>
+                    <div className="space-y-4">
                       {suportes.length === 0 && <div className="text-muted-foreground text-sm">Nenhum suporte cadastrado</div>}
                       {suportes.map((valor, idx) => {
                         const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
                         return (
-                          <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="font-medium text-blue-800">Suporte {idx + 1}</span>
-                              <span className="text-lg font-bold text-blue-600">{formatCurrency(valor)}</span>
+                          <div key={idx} className="bg-white border border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-center mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {idx + 1}
+                                </div>
+                                <span className="font-semibold text-blue-800 text-lg">Suporte {idx + 1}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-blue-700">{formatCurrency(valor)}</div>
+                                <div className="text-xs text-blue-600 font-medium">
+                                  {valor < precoAtual ? 'Abaixo do preço' : 'Acima do preço'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <div className="text-xs font-medium text-blue-700 mb-1">Distância do Preço Atual</div>
+                                <div className="space-y-1">
+                                  <div className={cn(
+                                    "text-lg font-bold",
+                                    parseFloat(dist.atual.absoluto) < 0 ? "text-green-600" : "text-blue-600"
+                                  )}>
+                                    {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                  </div>
+                                  <div className={cn(
+                                    "text-sm font-semibold",
+                                    parseFloat(dist.atual.percentual) < 0 ? "text-green-600" : "text-blue-600"
+                                  )}>
+                                    ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
+                                  </div>
+                                </div>
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {parseFloat(dist.atual.absoluto) < 0 ? 'Abaixo' : 'Acima'} do suporte
+                                </div>
+                              </div>
+                              {precoMedioCarteira && (
+                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                  <div className="text-xs font-medium text-orange-700 mb-1">Distância do Preço Médio</div>
+                                  <div className="space-y-1">
+                                    <div className={cn(
+                                      "text-lg font-bold",
+                                      parseFloat(dist.medio.absoluto) < 0 ? "text-green-600" : "text-orange-600"
+                                    )}>
+                                      {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
+                                    </div>
+                                    <div className={cn(
+                                      "text-sm font-semibold",
+                                      parseFloat(dist.medio.percentual) < 0 ? "text-green-600" : "text-orange-600"
+                                    )}>
+                                      ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-orange-600 mt-1">
+                                    {parseFloat(dist.medio.absoluto) < 0 ? 'Abaixo' : 'Acima'} da média
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             {(() => {
                               if (!suporteResistencia.niveis) return null;
                               const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'suporte')[idx];
                               return nivel && nivel.motivo ? (
-                                <div className="mt-2 w-full">
-                                  <span className="flex items-start gap-2 w-full text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded px-3 py-2 shadow-sm break-words">
-                                    <Info className="h-3 w-3 text-blue-500 flex-shrink-0 mt-0.5" />
-                                    <span className="whitespace-pre-line break-words">{nivel.motivo}</span>
-                                  </span>
+                                <div className="mt-4">
+                                  <div className="bg-gradient-to-r from-blue-100 via-blue-50 to-white border border-blue-200 rounded-lg p-4">
+                                    <div className="flex items-start gap-3">
+                                      <div className="bg-blue-500 p-2 rounded-lg flex-shrink-0">
+                                        <Info className="h-4 w-4 text-white" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <span className="text-sm font-bold text-blue-800">Análise Fundamentalista</span>
+                                          <div className="h-1 flex-1 bg-blue-200 rounded"></div>
+                                        </div>
+                                        <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line break-words bg-white/60 p-3 rounded border border-blue-100">
+                                          {nivel.motivo}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               ) : null;
                             })()}
-                            <div className="text-xs text-blue-600 mt-1">
-                              Distância do preço atual: {dist.atual}%
-                            </div>
-                            <div className="text-xs text-blue-500 mt-1">
-                              Distância do preço médio: {dist.medio}%
-                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <h4 className="font-semibold text-lg text-red-700 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Níveis de Resistência
-                    </h4>
-                    <div className="space-y-3">
+                    <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200">
+                      <h4 className="font-bold text-xl text-red-800 flex items-center gap-3 mb-4">
+                        <div className="bg-red-200 p-2 rounded-lg">
+                          <TrendingUp className="h-5 w-5 text-red-700" />
+                        </div>
+                        Níveis de Resistência
+                      </h4>
+                    </div>
+                    <div className="space-y-4">
                       {resistencias.length === 0 && <div className="text-muted-foreground text-sm">Nenhuma resistência cadastrada</div>}
                       {resistencias.map((valor, idx) => {
                         const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
                         return (
-                          <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="font-medium text-red-800">Resistência {idx + 1}</span>
-                              <span className="text-lg font-bold text-red-600">{formatCurrency(valor)}</span>
+                          <div key={idx} className="bg-white border border-red-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-center mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {idx + 1}
+                                </div>
+                                <span className="font-semibold text-red-800 text-lg">Resistência {idx + 1}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-red-700">{formatCurrency(valor)}</div>
+                                <div className="text-xs text-red-600 font-medium">
+                                  {valor > precoAtual ? 'Acima do preço' : 'Abaixo do preço'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                <div className="text-xs font-medium text-red-700 mb-1">Distância do Preço Atual</div>
+                                <div className="space-y-1">
+                                  <div className={cn(
+                                    "text-lg font-bold",
+                                    parseFloat(dist.atual.absoluto) > 0 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                    {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                  </div>
+                                  <div className={cn(
+                                    "text-sm font-semibold",
+                                    parseFloat(dist.atual.percentual) > 0 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                    ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
+                                  </div>
+                                </div>
+                                <div className="text-xs text-red-600 mt-1">
+                                  {parseFloat(dist.atual.absoluto) > 0 ? 'Acima' : 'Abaixo'} da resistência
+                                </div>
+                              </div>
+                              {precoMedioCarteira && (
+                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                  <div className="text-xs font-medium text-orange-700 mb-1">Distância do Preço Médio</div>
+                                  <div className="space-y-1">
+                                    <div className={cn(
+                                      "text-lg font-bold",
+                                      parseFloat(dist.medio.absoluto) > 0 ? "text-green-600" : "text-orange-600"
+                                    )}>
+                                      {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
+                                    </div>
+                                    <div className={cn(
+                                      "text-sm font-semibold",
+                                      parseFloat(dist.medio.percentual) > 0 ? "text-green-600" : "text-orange-600"
+                                    )}>
+                                      ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-orange-600 mt-1">
+                                    {parseFloat(dist.medio.absoluto) > 0 ? 'Acima' : 'Abaixo'} da média
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             {(() => {
                               if (!suporteResistencia.niveis) return null;
                               const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia')[idx];
                               return nivel && nivel.motivo ? (
-                                <div className="mt-2 w-full">
-                                  <span className="flex items-start gap-2 w-full text-xs text-red-900 bg-red-50 border border-red-200 rounded px-3 py-2 shadow-sm break-words">
-                                    <Info className="h-3 w-3 text-red-500 flex-shrink-0 mt-0.5" />
-                                    <span className="whitespace-pre-line break-words">{nivel.motivo}</span>
-                                  </span>
+                                <div className="mt-4">
+                                  <div className="bg-gradient-to-r from-red-100 via-red-50 to-white border border-red-200 rounded-lg p-4">
+                                    <div className="flex items-start gap-3">
+                                      <div className="bg-red-500 p-2 rounded-lg flex-shrink-0">
+                                        <Info className="h-4 w-4 text-white" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <span className="text-sm font-bold text-red-800">Análise Fundamentalista</span>
+                                          <div className="h-1 flex-1 bg-red-200 rounded"></div>
+                                        </div>
+                                        <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line break-words bg-white/60 p-3 rounded border border-red-100">
+                                          {nivel.motivo}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               ) : null;
                             })()}
-                            <div className="text-xs text-red-600 mt-1">
-                              Distância do preço atual: {dist.atual}%
-                            </div>
-                            <div className="text-xs text-red-500 mt-1">
-                              Distância do preço médio: {dist.medio}%
-                            </div>
                           </div>
                         );
                       })}

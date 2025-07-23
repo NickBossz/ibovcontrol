@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -13,12 +13,16 @@ import {
   Info,
   BarChart3,
   Eye,
-  Zap
+  Zap,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatVolume } from "@/lib/formatters";
-import { getPriceStatus, getProximityAlert, generateChartData, generateCandlestickData } from "@/lib/technicalAnalysis";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, ComposedChart, Bar, AreaChart, Area } from 'recharts';
+import { getPriceStatus, getProximityAlert, generateCandlestickData } from "@/lib/technicalAnalysis";
+import Chart from 'react-apexcharts';
+import { ApexOptions } from 'apexcharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface SuporteResistencia {
   id: string;
@@ -67,26 +71,20 @@ export function SuporteResistenciaCard({
   showAlert = false 
 }: SuporteResistenciaCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [useApexCharts, setUseApexCharts] = useState(true);
   const priceStatus = getPriceStatus(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
   const proximityAlert = getProximityAlert(precoAtual, suporteResistencia.suporte1, suporteResistencia.resistencia1);
+  
   // Antes de gerar o chartData/candlestickData, montar arrays dinâmicos de suportes e resistências
-  let suportes: number[] = [];
-  let resistencias: number[] = [];
-  if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0) {
-    suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
-    resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
-  } else {
-    suportes = [suporteResistencia.suporte1, suporteResistencia.suporte2].filter(v => v !== null && v !== undefined);
-    resistencias = [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
-  }
+  const suportes: number[] = suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0
+    ? suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor)
+    : [suporteResistencia.suporte1, suporteResistencia.suporte2].filter(v => v !== null && v !== undefined);
+    
+  const resistencias: number[] = suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0
+    ? suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor)
+    : [suporteResistencia.resistencia1, suporteResistencia.resistencia2].filter(v => v !== null && v !== undefined);
 
-  const chartData = generateChartData(
-    precoAtual, 
-    suporteResistencia.suporte1, 
-    suporteResistencia.suporte2, 
-    suporteResistencia.resistencia1, 
-    suporteResistencia.resistencia2
-  );
 
   const candlestickData = generateCandlestickData(
     precoAtual,
@@ -113,7 +111,7 @@ export function SuporteResistenciaCard({
       case 'above-resistance':
         return 'Acima da Resistência 1';
       default:
-        return 'Dentro do Canal';
+        return '';
     }
   };
 
@@ -173,17 +171,19 @@ export function SuporteResistenciaCard({
             </div>
 
             {/* Status do preço */}
-            <div className="flex items-center gap-2">
-              {getStatusIcon()}
-              <Badge variant="outline" className={cn(
-                "text-xs font-medium",
-                priceStatus === 'below-support' && "border-red-300 text-red-700 bg-red-50",
-                priceStatus === 'above-resistance' && "border-green-300 text-green-700 bg-green-50",
-                priceStatus === 'neutral' && "border-blue-300 text-blue-700 bg-blue-50"
-              )}>
-                {getStatusText()}
-              </Badge>
-            </div>
+            {getStatusText() && (
+              <div className="flex items-center gap-2">
+                {getStatusIcon()}
+                <Badge variant="outline" className={cn(
+                  "text-xs font-medium",
+                  priceStatus === 'below-support' && "border-red-300 text-red-700 bg-red-50",
+                  priceStatus === 'above-resistance' && "border-green-300 text-green-700 bg-green-50",
+                  priceStatus === 'neutral' && "border-blue-300 text-blue-700 bg-blue-50"
+                )}>
+                  {getStatusText()}
+                </Badge>
+              </div>
+            )}
 
             {/* Alerta de proximidade */}
             {showAlert && proximityAlert && (
@@ -324,33 +324,6 @@ export function SuporteResistenciaCard({
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Informação educacional destacada */}
-            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Info className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-blue-900">Conceitos Fundamentais</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div className="bg-white/80 p-3 rounded-lg border border-blue-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingDown className="h-4 w-4 text-blue-600" />
-                        <span className="font-semibold text-blue-800">Suporte</span>
-                      </div>
-                      <p className="text-blue-700 leading-relaxed">Região onde o preço tende a parar de cair devido ao aumento do interesse de compra.</p>
-                    </div>
-                    <div className="bg-white/80 p-3 rounded-lg border border-red-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="h-4 w-4 text-red-600" />
-                        <span className="font-semibold text-red-800">Resistência</span>
-                      </div>
-                      <p className="text-red-700 leading-relaxed">Região onde o preço tende a parar de subir devido ao aumento do interesse de venda.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
             {/* Header melhorado do modal */}
             <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-6">
               <div className="flex items-center justify-between">
@@ -373,6 +346,13 @@ export function SuporteResistenciaCard({
                   )}>
                     {variacaoPercentual >= 0 ? '+' : ''}{formatPercent(variacaoPercentual)}
                   </div>
+                  {precoMedioCarteira && (
+                    <div className="bg-orange-100 px-3 py-1 rounded-full border border-orange-200">
+                      <div className="text-sm font-semibold text-orange-800">
+                        Preço Médio: {formatCurrency(precoMedioCarteira)}
+                      </div>
+                    </div>
+                  )}
                   <div className="text-sm text-slate-500">Volume: {formatVolume(volume)}</div>
                 </div>
               </div>
@@ -380,17 +360,19 @@ export function SuporteResistenciaCard({
 
             {/* Status e alertas */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                {getStatusIcon()}
-                <Badge variant="outline" className={cn(
-                  "text-sm",
-                  priceStatus === 'below-support' && "border-red-300 text-red-700 bg-red-50",
-                  priceStatus === 'above-resistance' && "border-green-300 text-green-700 bg-green-50",
-                  priceStatus === 'neutral' && "border-blue-300 text-blue-700 bg-blue-50"
-                )}>
-                  {getStatusText()}
-                </Badge>
-              </div>
+              {getStatusText() && (
+                <div className="flex items-center gap-2">
+                  {getStatusIcon()}
+                  <Badge variant="outline" className={cn(
+                    "text-sm",
+                    priceStatus === 'below-support' && "border-red-300 text-red-700 bg-red-50",
+                    priceStatus === 'above-resistance' && "border-green-300 text-green-700 bg-green-50",
+                    priceStatus === 'neutral' && "border-blue-300 text-blue-700 bg-blue-50"
+                  )}>
+                    {getStatusText()}
+                  </Badge>
+                </div>
+              )}
 
               {proximityAlert && (
                 <Alert className={cn(
@@ -413,94 +395,90 @@ export function SuporteResistenciaCard({
 
             <Separator />
 
+            {/* Controle de visualização */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Níveis de Suporte e Resistência</h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="h-8 px-3"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Cards
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="h-8 px-3"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  Lista
+                </Button>
+              </div>
+            </div>
+
             {/* Suportes e Resistências detalhados - dinâmico */}
-            {(() => {
-              let suportes: number[] = [];
-              let resistencias: number[] = [];
-              if (suporteResistencia.niveis && Array.isArray(suporteResistencia.niveis) && suporteResistencia.niveis.length > 0) {
-                suportes = suporteResistencia.niveis.filter(n => n.tipo === 'suporte').map(n => n.valor);
-                resistencias = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia').map(n => n.valor);
-              } else {
-                suportes = [
-                  suporteResistencia.suporte1,
-                  suporteResistencia.suporte2
-                ].filter(v => v !== null && v !== undefined);
-                resistencias = [
-                  suporteResistencia.resistencia1,
-                  suporteResistencia.resistencia2
-                ].filter(v => v !== null && v !== undefined);
-              }
-              return (
+            {viewMode === 'cards' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Suportes */}
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                      <h4 className="font-bold text-xl text-blue-800 flex items-center gap-3 mb-4">
-                        <div className="bg-blue-200 p-2 rounded-lg">
-                          <TrendingDown className="h-5 w-5 text-blue-700" />
-                        </div>
-                        Níveis de Suporte
-                      </h4>
-                    </div>
-                    <div className="space-y-4">
-                      {suportes.length === 0 && <div className="text-muted-foreground text-sm">Nenhum suporte cadastrado</div>}
+                    <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <TrendingDown className="h-4 w-4" />
+                      Suportes
+                    </h4>
+                    {suportes.length === 0 && <div className="text-muted-foreground text-sm">Nenhum suporte cadastrado</div>}
                       {suportes.map((valor, idx) => {
                         const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
                         return (
-                          <div key={idx} className="bg-white border border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-center mb-3">
+                          <div key={idx} className="bg-white border border-blue-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start mb-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
                                   {idx + 1}
                                 </div>
-                                <span className="font-semibold text-blue-800 text-lg">Suporte {idx + 1}</span>
+                                <span className="font-semibold text-blue-800 text-base">Suporte {idx + 1}</span>
                               </div>
                               <div className="text-right">
-                                <div className="text-2xl font-bold text-blue-700">{formatCurrency(valor)}</div>
-                                <div className="text-xs text-blue-600 font-medium">
-                                  {valor < precoAtual ? 'Abaixo do preço' : 'Acima do preço'}
-                                </div>
+                                <div className="text-xl font-bold text-blue-700">{formatCurrency(valor)}</div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                <div className="text-xs font-medium text-blue-700 mb-1">Distância do Preço Atual</div>
-                                <div className="space-y-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <div className="bg-blue-50 p-2 rounded border border-blue-100">
+                                <div className="text-xs font-medium text-blue-700">vs Preço Atual</div>
+                                <div className="flex items-center justify-between">
                                   <div className={cn(
-                                    "text-lg font-bold",
+                                    "text-sm font-bold",
                                     parseFloat(dist.atual.absoluto) < 0 ? "text-green-600" : "text-blue-600"
                                   )}>
                                     {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
                                   </div>
                                   <div className={cn(
-                                    "text-sm font-semibold",
+                                    "text-xs font-semibold",
                                     parseFloat(dist.atual.percentual) < 0 ? "text-green-600" : "text-blue-600"
                                   )}>
                                     ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
                                   </div>
                                 </div>
-                                <div className="text-xs text-blue-600 mt-1">
-                                  {parseFloat(dist.atual.absoluto) < 0 ? 'Abaixo' : 'Acima'} do suporte
-                                </div>
                               </div>
                               {precoMedioCarteira && (
-                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
-                                  <div className="text-xs font-medium text-orange-700 mb-1">Distância do Preço Médio</div>
-                                  <div className="space-y-1">
+                                <div className="bg-orange-50 p-2 rounded border border-orange-100">
+                                  <div className="text-xs font-medium text-orange-700">vs Preço Médio</div>
+                                  <div className="flex items-center justify-between">
                                     <div className={cn(
-                                      "text-lg font-bold",
+                                      "text-sm font-bold",
                                       parseFloat(dist.medio.absoluto) < 0 ? "text-green-600" : "text-orange-600"
                                     )}>
                                       {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
                                     </div>
                                     <div className={cn(
-                                      "text-sm font-semibold",
+                                      "text-xs font-semibold",
                                       parseFloat(dist.medio.percentual) < 0 ? "text-green-600" : "text-orange-600"
                                     )}>
                                       ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
                                     </div>
-                                  </div>
-                                  <div className="text-xs text-orange-600 mt-1">
-                                    {parseFloat(dist.medio.absoluto) < 0 ? 'Abaixo' : 'Acima'} da média
                                   </div>
                                 </div>
                               )}
@@ -532,429 +510,679 @@ export function SuporteResistenciaCard({
                           </div>
                         );
                       })}
-                    </div>
                   </div>
+
+                  {/* Resistências */}
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200">
-                      <h4 className="font-bold text-xl text-red-800 flex items-center gap-3 mb-4">
-                        <div className="bg-red-200 p-2 rounded-lg">
-                          <TrendingUp className="h-5 w-5 text-red-700" />
-                        </div>
-                        Níveis de Resistência
-                      </h4>
-                    </div>
-                    <div className="space-y-4">
-                      {resistencias.length === 0 && <div className="text-muted-foreground text-sm">Nenhuma resistência cadastrada</div>}
-                      {resistencias.map((valor, idx) => {
-                        const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
-                        return (
-                          <div key={idx} className="bg-white border border-red-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-center mb-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                  {idx + 1}
-                                </div>
-                                <span className="font-semibold text-red-800 text-lg">Resistência {idx + 1}</span>
+                    <h4 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Resistências
+                    </h4>
+                    {resistencias.length === 0 && <div className="text-muted-foreground text-sm">Nenhuma resistência cadastrada</div>}
+                    {resistencias.map((valor, idx) => {
+                      const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
+                      return (
+                        <div key={idx} className="bg-white border border-red-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                {idx + 1}
                               </div>
-                              <div className="text-right">
-                                <div className="text-2xl font-bold text-red-700">{formatCurrency(valor)}</div>
-                                <div className="text-xs text-red-600 font-medium">
-                                  {valor > precoAtual ? 'Acima do preço' : 'Abaixo do preço'}
+                              <span className="font-semibold text-red-800 text-base">Resistência {idx + 1}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-red-700">{formatCurrency(valor)}</div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="bg-red-50 p-2 rounded border border-red-100">
+                              <div className="text-xs font-medium text-red-700">vs Preço Atual</div>
+                              <div className="flex items-center justify-between">
+                                <div className={cn(
+                                  "text-sm font-bold",
+                                  parseFloat(dist.atual.absoluto) > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                </div>
+                                <div className={cn(
+                                  "text-xs font-semibold",
+                                  parseFloat(dist.atual.percentual) > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
                                 </div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                              <div className="bg-red-50 p-3 rounded-lg border border-red-100">
-                                <div className="text-xs font-medium text-red-700 mb-1">Distância do Preço Atual</div>
-                                <div className="space-y-1">
+                            {precoMedioCarteira && (
+                              <div className="bg-orange-50 p-2 rounded border border-orange-100">
+                                <div className="text-xs font-medium text-orange-700">vs Preço Médio</div>
+                                <div className="flex items-center justify-between">
                                   <div className={cn(
-                                    "text-lg font-bold",
-                                    parseFloat(dist.atual.absoluto) > 0 ? "text-green-600" : "text-red-600"
+                                    "text-sm font-bold",
+                                    parseFloat(dist.medio.absoluto) > 0 ? "text-green-600" : "text-orange-600"
                                   )}>
-                                    {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                    {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
                                   </div>
                                   <div className={cn(
-                                    "text-sm font-semibold",
-                                    parseFloat(dist.atual.percentual) > 0 ? "text-green-600" : "text-red-600"
+                                    "text-xs font-semibold",
+                                    parseFloat(dist.medio.percentual) > 0 ? "text-green-600" : "text-orange-600"
                                   )}>
-                                    ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
+                                    ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
                                   </div>
                                 </div>
-                                <div className="text-xs text-red-600 mt-1">
-                                  {parseFloat(dist.atual.absoluto) > 0 ? 'Acima' : 'Abaixo'} da resistência
+                              </div>
+                            )}
+                          </div>
+                          {(() => {
+                            if (!suporteResistencia.niveis) return null;
+                            const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia')[idx];
+                            return nivel && nivel.motivo ? (
+                              <div className="mt-4">
+                                <div className="bg-gradient-to-r from-red-100 via-red-50 to-white border border-red-200 rounded-lg p-4">
+                                  <div className="flex items-start gap-3">
+                                    <div className="bg-red-500 p-2 rounded-lg flex-shrink-0">
+                                      <Info className="h-4 w-4 text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-sm font-bold text-red-800">Análise Fundamentalista</span>
+                                        <div className="h-1 flex-1 bg-red-200 rounded"></div>
+                                      </div>
+                                      <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line break-words bg-white/60 p-3 rounded border border-red-100">
+                                        {nivel.motivo}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Tabela de Suportes */}
+                  {suportes.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <TrendingDown className="h-4 w-4" />
+                        Suportes
+                      </h4>
+                      <div className="bg-white border border-blue-200 rounded-lg overflow-hidden">
+                        <div className={cn(
+                          "bg-blue-50 px-4 py-2 gap-4 text-xs font-semibold text-blue-800",
+                          precoMedioCarteira ? "grid grid-cols-4" : "grid grid-cols-3"
+                        )}>
+                          <div>Nível</div>
+                          <div>Valor</div>
+                          <div>vs Atual</div>
+                          {precoMedioCarteira && <div>vs Médio</div>}
+                        </div>
+                        {suportes.map((valor, idx) => {
+                          const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
+                          return (
+                            <div key={idx} className={cn(
+                              "px-4 py-3 gap-4 border-t border-blue-100 text-sm hover:bg-blue-50/50",
+                              precoMedioCarteira ? "grid grid-cols-4" : "grid grid-cols-3"
+                            )}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {idx + 1}
+                                </div>
+                                <span className="font-medium">S{idx + 1}</span>
+                              </div>
+                              <div className="font-bold text-blue-700">{formatCurrency(valor)}</div>
+                              <div className="space-y-1">
+                                <div className={cn(
+                                  "font-semibold",
+                                  parseFloat(dist.atual.absoluto) < 0 ? "text-green-600" : "text-blue-600"
+                                )}>
+                                  {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                </div>
+                                <div className={cn(
+                                  "text-xs",
+                                  parseFloat(dist.atual.percentual) < 0 ? "text-green-600" : "text-blue-600"
+                                )}>
+                                  ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
                                 </div>
                               </div>
                               {precoMedioCarteira && (
-                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
-                                  <div className="text-xs font-medium text-orange-700 mb-1">Distância do Preço Médio</div>
-                                  <div className="space-y-1">
-                                    <div className={cn(
-                                      "text-lg font-bold",
-                                      parseFloat(dist.medio.absoluto) > 0 ? "text-green-600" : "text-orange-600"
-                                    )}>
-                                      {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
-                                    </div>
-                                    <div className={cn(
-                                      "text-sm font-semibold",
-                                      parseFloat(dist.medio.percentual) > 0 ? "text-green-600" : "text-orange-600"
-                                    )}>
-                                      ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
-                                    </div>
+                                <div className="space-y-1">
+                                  <div className={cn(
+                                    "font-semibold",
+                                    parseFloat(dist.medio.absoluto) < 0 ? "text-green-600" : "text-orange-600"
+                                  )}>
+                                    {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
                                   </div>
-                                  <div className="text-xs text-orange-600 mt-1">
-                                    {parseFloat(dist.medio.absoluto) > 0 ? 'Acima' : 'Abaixo'} da média
+                                  <div className={cn(
+                                    "text-xs",
+                                    parseFloat(dist.medio.percentual) < 0 ? "text-green-600" : "text-orange-600"
+                                  )}>
+                                    ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
                                   </div>
                                 </div>
                               )}
                             </div>
-                            {(() => {
-                              if (!suporteResistencia.niveis) return null;
-                              const nivel = suporteResistencia.niveis.filter(n => n.tipo === 'resistencia')[idx];
-                              return nivel && nivel.motivo ? (
-                                <div className="mt-4">
-                                  <div className="bg-gradient-to-r from-red-100 via-red-50 to-white border border-red-200 rounded-lg p-4">
-                                    <div className="flex items-start gap-3">
-                                      <div className="bg-red-500 p-2 rounded-lg flex-shrink-0">
-                                        <Info className="h-4 w-4 text-white" />
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <span className="text-sm font-bold text-red-800">Análise Fundamentalista</span>
-                                          <div className="h-1 flex-1 bg-red-200 rounded"></div>
-                                        </div>
-                                        <div className="text-sm text-red-900 leading-relaxed whitespace-pre-line break-words bg-white/60 p-3 rounded border border-red-100">
-                                          {nivel.motivo}
-                                        </div>
-                                      </div>
-                                    </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tabela de Resistências */}
+                  {resistencias.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Resistências
+                      </h4>
+                      <div className="bg-white border border-red-200 rounded-lg overflow-hidden">
+                        <div className={cn(
+                          "bg-red-50 px-4 py-2 gap-4 text-xs font-semibold text-red-800",
+                          precoMedioCarteira ? "grid grid-cols-4" : "grid grid-cols-3"
+                        )}>
+                          <div>Nível</div>
+                          <div>Valor</div>
+                          <div>vs Atual</div>
+                          {precoMedioCarteira && <div>vs Médio</div>}
+                        </div>
+                        {resistencias.map((valor, idx) => {
+                          const dist = calcularDistancias(valor!, precoAtual, precoMedioCarteira);
+                          return (
+                            <div key={idx} className={cn(
+                              "px-4 py-3 gap-4 border-t border-red-100 text-sm hover:bg-red-50/50",
+                              precoMedioCarteira ? "grid grid-cols-4" : "grid grid-cols-3"
+                            )}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {idx + 1}
+                                </div>
+                                <span className="font-medium">R{idx + 1}</span>
+                              </div>
+                              <div className="font-bold text-red-700">{formatCurrency(valor)}</div>
+                              <div className="space-y-1">
+                                <div className={cn(
+                                  "font-semibold",
+                                  parseFloat(dist.atual.absoluto) > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  {parseFloat(dist.atual.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.atual.absoluto))}
+                                </div>
+                                <div className={cn(
+                                  "text-xs",
+                                  parseFloat(dist.atual.percentual) > 0 ? "text-green-600" : "text-red-600"
+                                )}>
+                                  ({parseFloat(dist.atual.percentual) >= 0 ? '+' : ''}{dist.atual.percentual}%)
+                                </div>
+                              </div>
+                              {precoMedioCarteira && (
+                                <div className="space-y-1">
+                                  <div className={cn(
+                                    "font-semibold",
+                                    parseFloat(dist.medio.absoluto) > 0 ? "text-green-600" : "text-orange-600"
+                                  )}>
+                                    {parseFloat(dist.medio.absoluto) >= 0 ? '+' : ''}{formatCurrency(parseFloat(dist.medio.absoluto))}
+                                  </div>
+                                  <div className={cn(
+                                    "text-xs",
+                                    parseFloat(dist.medio.percentual) > 0 ? "text-green-600" : "text-orange-600"
+                                  )}>
+                                    ({parseFloat(dist.medio.percentual) >= 0 ? '+' : ''}{dist.medio.percentual}%)
                                   </div>
                                 </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        );
-                      })}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })()}
+                  )}
 
-            {/* Gráfico Candlestick */}
+                  {suportes.length === 0 && resistencias.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      Nenhum suporte ou resistência cadastrado
+                    </div>
+                  )}
+                </div>
+            )}
+
+            {/* Gráfico ApexCharts */}
             {showChart && (suportes.length > 0 || resistencias.length > 0) && (
               <>
                 <Separator />
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-semibold text-lg">Análise Técnica Avançada (60 dias)</h4>
-                    {precoMedioCarteira && (
-                      <div className="text-sm text-muted-foreground">
-                        Preço médio da carteira: <span className="font-semibold">{formatCurrency(precoMedioCarteira)}</span>
-                      </div>
-                    )}
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-lg">Gráfico de Análise (60 dias)</h4>
                   </div>
                   
-                  {/* Gráfico Principal - Área com OHLC */}
-                  <div className="h-80 mb-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={candlestickData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <defs>
-                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis 
-                          domain={['dataMin - 1', 'dataMax + 1']}
-                          tickFormatter={(value) => formatCurrency(value)}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <Tooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length > 0) {
-                              const data = payload[0].payload;
-                              return (
-                                <div className="bg-white border rounded-lg shadow-lg p-3">
-                                  <p className="font-semibold">{new Date(label).toLocaleDateString('pt-BR')}</p>
-                                  <div className="space-y-1 text-sm">
-                                    <p>Abertura: <span className="font-medium">{formatCurrency(data.open)}</span></p>
-                                    <p>Máxima: <span className="font-medium text-green-600">{formatCurrency(data.high)}</span></p>
-                                    <p>Mínima: <span className="font-medium text-red-600">{formatCurrency(data.low)}</span></p>
-                                    <p>Fechamento: <span className="font-medium">{formatCurrency(data.close)}</span></p>
-                                    <p>Volume: <span className="font-medium">{formatVolume(data.volume)}</span></p>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        
-                        {/* Área de máximas e mínimas */}
-                        <Area
-                          type="monotone"
-                          dataKey="high"
-                          stroke="none"
-                          fill="url(#priceGradient)"
-                          fillOpacity={0.2}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="low"
-                          stroke="none"
-                          fill="#ffffff"
-                          fillOpacity={1}
-                        />
-                        
-                        {/* Linha de fechamento */}
-                        <Line 
-                          type="monotone" 
-                          dataKey="close" 
-                          stroke="#3b82f6" 
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 5, stroke: '#3b82f6', strokeWidth: 2 }}
-                          name="Preço"
-                        />
-
-                        {/* Médias Móveis */}
-                        <Line 
-                          type="monotone" 
-                          dataKey="sma20" 
-                          stroke="#10b981" 
-                          strokeWidth={2}
-                          dot={false}
-                          strokeDasharray="none"
-                          name="SMA 20"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="sma50" 
-                          stroke="#f59e0b" 
-                          strokeWidth={2}
-                          dot={false}
-                          strokeDasharray="none"
-                          name="SMA 50"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="ema12" 
-                          stroke="#8b5cf6" 
-                          strokeWidth={1.5}
-                          dot={false}
-                          strokeDasharray="4 4"
-                          name="EMA 12"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="ema26" 
-                          stroke="#ec4899" 
-                          strokeWidth={1.5}
-                          dot={false}
-                          strokeDasharray="4 4"
-                          name="EMA 26"
-                        />
-
-                        {/* Bandas de Bollinger */}
-                        <Line 
-                          type="monotone" 
-                          dataKey="bollingerUpper" 
-                          stroke="#6b7280" 
-                          strokeWidth={1}
-                          dot={false}
-                          strokeDasharray="2 2"
-                          name="Bollinger Superior"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="bollingerLower" 
-                          stroke="#6b7280" 
-                          strokeWidth={1}
-                          dot={false}
-                          strokeDasharray="2 2"
-                          name="Bollinger Inferior"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="bollingerMiddle" 
-                          stroke="#9ca3af" 
-                          strokeWidth={1}
-                          dot={false}
-                          strokeDasharray="1 1"
-                          name="Bollinger Média"
-                        />
-
-                        {/* Linhas de referência */}
-                        {suporteResistencia.suporte1 && (
-                          <ReferenceLine 
-                            y={suporteResistencia.suporte1} 
-                            stroke="#3b82f6" 
-                            strokeDasharray="5 5"
-                            strokeWidth={2}
-                            label={{ value: "S1", position: "insideTopRight" }}
-                          />
-                        )}
-                        {suporteResistencia.suporte2 && (
-                          <ReferenceLine 
-                            y={suporteResistencia.suporte2} 
-                            stroke="#1d4ed8" 
-                            strokeDasharray="5 5"
-                            strokeWidth={2}
-                            label={{ value: "S2", position: "insideTopRight" }}
-                          />
-                        )}
-                        {suporteResistencia.resistencia1 && (
-                          <ReferenceLine 
-                            y={suporteResistencia.resistencia1} 
-                            stroke="#dc2626" 
-                            strokeDasharray="5 5"
-                            strokeWidth={2}
-                            label={{ value: "R1", position: "insideBottomRight" }}
-                          />
-                        )}
-                        {suporteResistencia.resistencia2 && (
-                          <ReferenceLine 
-                            y={suporteResistencia.resistencia2} 
-                            stroke="#991b1b" 
-                            strokeDasharray="5 5"
-                            strokeWidth={2}
-                            label={{ value: "R2", position: "insideBottomRight" }}
-                          />
-                        )}
-                        {precoMedioCarteira && (
-                          <ReferenceLine 
-                            y={precoMedioCarteira} 
-                            stroke="#f59e0b" 
-                            strokeDasharray="2 2"
-                            strokeWidth={3}
-                            label={{ value: "Preço Médio Carteira", position: "insideTopLeft", style: { fontSize: 12, fontWeight: 'bold' } }}
-                          />
-                        )}
-                        {/* Linhas de suporte */}
-                        {suportes.map((valor, idx) => (
-                          <ReferenceLine key={`suporte-${idx}`} y={valor} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: `S${idx + 1}`, position: 'right', fill: '#3b82f6', fontSize: 12 }} />
-                        ))}
-                        {/* Linhas de resistência */}
-                        {resistencias.map((valor, idx) => (
-                          <ReferenceLine key={`resistencia-${idx}`} y={valor} stroke="#ef4444" strokeDasharray="3 3" label={{ value: `R${idx + 1}`, position: 'right', fill: '#ef4444', fontSize: 12 }} />
-                        ))}
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* MACD */}
-                  <div className="h-24 mb-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={candlestickData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          tick={{ fontSize: 10 }}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 10 }}
-                          tickFormatter={(value) => value.toFixed(2)}
-                        />
-                        <Bar 
-                          dataKey="macd" 
-                          fill="#6366f1"
-                          opacity={0.7}
-                        />
-                        <ReferenceLine y={0} stroke="#6b7280" strokeDasharray="2 2" />
-                        <Tooltip 
-                          formatter={(value: number) => [value?.toFixed(4), 'MACD']}
-                          labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Volume */}
-                  <div className="h-16">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={candlestickData}>
-                        <XAxis dataKey="date" hide />
-                        <YAxis hide />
-                        <Bar 
-                          dataKey="volume" 
-                          fill="#8884d8" 
-                          opacity={0.6}
-                        />
-                        <Tooltip 
-                          formatter={(value: number) => [formatVolume(value), 'Volume']}
-                          labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Legenda Completa */}
-                  <div className="space-y-3 mt-4">
-                    {/* Primeira linha - Preços e Médias Móveis Principais */}
-                    <div className="flex justify-center flex-wrap gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-blue-500"></div>
-                        <span className="font-medium">Preço</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-green-500"></div>
-                        <span>SMA 20</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-yellow-500"></div>
-                        <span>SMA 50</span>
-                      </div>
-                      {precoMedioCarteira && (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-0.5 bg-orange-500" style={{ borderTop: '2px dashed' }}></div>
-                          <span className="font-medium">Preço Médio Carteira</span>
+                  {(() => {
+                    // Verificar se os dados existem
+                    if (!candlestickData || candlestickData.length === 0) {
+                      return (
+                        <div className="flex items-center justify-center h-40 text-muted-foreground">
+                          <p>Dados do gráfico não disponíveis</p>
                         </div>
-                      )}
-                    </div>
+                      );
+                    }
 
-                    {/* Segunda linha - EMAs e Bollinger */}
-                    <div className="flex justify-center flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-purple-500" style={{ borderTop: '1px dashed' }}></div>
-                        <span>EMA 12</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-pink-500" style={{ borderTop: '1px dashed' }}></div>
-                        <span>EMA 26</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-gray-500" style={{ borderTop: '1px dotted' }}></div>
-                        <span>Bollinger</span>
-                      </div>
-                    </div>
+                    // Preparar dados para ApexCharts - Candlestick
+                    const candlestickSeries = [{
+                      name: 'Preço',
+                      data: candlestickData.map(item => ({
+                        x: new Date(item.date).getTime(),
+                        y: [item.open, item.high, item.low, item.close]
+                      }))
+                    }];
 
-                    {/* Terceira linha - Suportes e Resistências */}
-                    <div className="flex justify-center flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-blue-600" style={{ borderTop: '2px dashed' }}></div>
-                        <span>Suportes</span>
+                    // Séries para médias móveis
+                    const lineSeries = [
+                      {
+                        name: 'SMA 20',
+                        data: candlestickData.map(item => ({
+                          x: new Date(item.date).getTime(),
+                          y: item.sma20
+                        }))
+                      },
+                      {
+                        name: 'SMA 50',
+                        data: candlestickData.map(item => ({
+                          x: new Date(item.date).getTime(),
+                          y: item.sma50
+                        }))
+                      }
+                    ];
+
+                    // Preparar anotações para suportes e resistências
+                    const annotations = {
+                      yaxis: [
+                        ...suportes.map((valor, idx) => ({
+                          y: valor,
+                          borderColor: '#3b82f6',
+                          strokeDashArray: 5,
+                          label: {
+                            text: `S${idx + 1}`,
+                            style: {
+                              color: '#ffffff',
+                              background: '#3b82f6'
+                            }
+                          }
+                        })),
+                        ...resistencias.map((valor, idx) => ({
+                          y: valor,
+                          borderColor: '#ef4444',
+                          strokeDashArray: 5,
+                          label: {
+                            text: `R${idx + 1}`,
+                            style: {
+                              color: '#ffffff',
+                              background: '#ef4444'
+                            }
+                          }
+                        })),
+                        ...(precoMedioCarteira ? [{
+                          y: precoMedioCarteira,
+                          borderColor: '#f59e0b',
+                          strokeDashArray: 3,
+                          label: {
+                            text: 'Preço Médio',
+                            style: {
+                              color: '#ffffff',
+                              background: '#f59e0b'
+                            }
+                          }
+                        }] : [])
+                      ]
+                    };
+
+                    // Opções do gráfico candlestick
+                    const candlestickOptions: ApexOptions = {
+                      chart: {
+                        type: 'candlestick',
+                        height: 350,
+                        toolbar: {
+                          show: false
+                        },
+                        zoom: {
+                          enabled: true
+                        }
+                      },
+                      title: {
+                        text: `${suporteResistencia.ativo_codigo} - Análise Técnica`,
+                        align: 'left'
+                      },
+                      xaxis: {
+                        type: 'datetime'
+                      },
+                      yaxis: {
+                        tooltip: {
+                          enabled: true
+                        },
+                        labels: {
+                          formatter: (value) => formatCurrency(value)
+                        }
+                      },
+                      plotOptions: {
+                        candlestick: {
+                          colors: {
+                            upward: '#10b981',
+                            downward: '#ef4444'
+                          }
+                        }
+                      },
+                      annotations,
+                      grid: {
+                        borderColor: '#f0f0f0'
+                      }
+                    };
+
+                    // Opções do gráfico de linhas (médias móveis)
+                    const lineOptions: ApexOptions = {
+                      chart: {
+                        type: 'line',
+                        height: 200,
+                        toolbar: {
+                          show: false
+                        }
+                      },
+                      title: {
+                        text: 'Médias Móveis',
+                        style: {
+                          fontSize: '14px'
+                        }
+                      },
+                      xaxis: {
+                        type: 'datetime',
+                        labels: {
+                          show: false
+                        }
+                      },
+                      yaxis: {
+                        labels: {
+                          formatter: (value) => formatCurrency(value)
+                        }
+                      },
+                      stroke: {
+                        curve: 'smooth',
+                        width: 2
+                      },
+                      colors: ['#10b981', '#f59e0b'],
+                      legend: {
+                        show: true
+                      },
+                      grid: {
+                        borderColor: '#f0f0f0'
+                      }
+                    };
+
+                    // Tentar usar ApexCharts, com fallback para Recharts
+                    if (useApexCharts) {
+                      try {
+                        return (
+                          <div className="w-full space-y-4">
+                            {/* Gráfico Candlestick Principal */}
+                            <div>
+                              <Chart
+                                options={candlestickOptions}
+                                series={candlestickSeries}
+                                type="candlestick"
+                                height={350}
+                              />
+                            </div>
+                            
+                            {/* Gráfico de Médias Móveis */}
+                            <div>
+                              <Chart
+                                options={lineOptions}
+                                series={lineSeries}
+                                type="line"
+                                height={200}
+                              />
+                            </div>
+                            
+                            {/* MACD Chart */}
+                            <div>
+                              <Chart
+                                options={{
+                                  chart: {
+                                    type: 'bar',
+                                    height: 120,
+                                    toolbar: { show: false }
+                                  },
+                                  title: {
+                                    text: 'MACD',
+                                    style: { 
+                                      fontSize: '14px',
+                                      color: '#374151',
+                                      fontWeight: 600
+                                    }
+                                  },
+                                  xaxis: {
+                                    type: 'datetime',
+                                    labels: { 
+                                      show: false 
+                                    }
+                                  },
+                                  yaxis: {
+                                    labels: {
+                                      style: {
+                                        colors: '#6b7280',
+                                        fontSize: '10px'
+                                      },
+                                      formatter: (value) => {
+                                        if (Math.abs(value) >= 1000) {
+                                          return (value / 1000).toFixed(1) + 'K';
+                                        }
+                                        return value?.toFixed(2);
+                                      }
+                                    }
+                                  },
+                                  colors: ['#6366f1'],
+                                  plotOptions: {
+                                    bar: {
+                                      columnWidth: '60%'
+                                    }
+                                  },
+                                  grid: {
+                                    borderColor: '#f1f5f9',
+                                    strokeDashArray: 2
+                                  },
+                                  dataLabels: {
+                                    enabled: false
+                                  }
+                                }}
+                                series={[{
+                                  name: 'MACD',
+                                  data: candlestickData.map(item => ({
+                                    x: new Date(item.date).getTime(),
+                                    y: item.macd
+                                  }))
+                                }]}
+                                type="bar"
+                                height={120}
+                              />
+                            </div>
+                            
+                            {/* Volume Chart */}
+                            <div>
+                              <Chart
+                                options={{
+                                  chart: {
+                                    type: 'bar',
+                                    height: 100,
+                                    toolbar: { show: false }
+                                  },
+                                  title: {
+                                    text: 'Volume',
+                                    style: { 
+                                      fontSize: '14px',
+                                      color: '#374151',
+                                      fontWeight: 600
+                                    }
+                                  },
+                                  xaxis: {
+                                    type: 'datetime',
+                                    labels: { 
+                                      show: false 
+                                    }
+                                  },
+                                  yaxis: {
+                                    labels: {
+                                      style: {
+                                        colors: '#6b7280',
+                                        fontSize: '10px'
+                                      },
+                                      formatter: (value) => {
+                                        if (value >= 1000000000) {
+                                          return (value / 1000000000).toFixed(1) + 'B';
+                                        } else if (value >= 1000000) {
+                                          return (value / 1000000).toFixed(1) + 'M';
+                                        } else if (value >= 1000) {
+                                          return (value / 1000).toFixed(1) + 'K';
+                                        }
+                                        return value?.toString();
+                                      }
+                                    }
+                                  },
+                                  colors: ['#10b981'],
+                                  plotOptions: {
+                                    bar: {
+                                      columnWidth: '50%'
+                                    }
+                                  },
+                                  grid: {
+                                    borderColor: '#f1f5f9',
+                                    strokeDashArray: 2
+                                  },
+                                  dataLabels: {
+                                    enabled: false
+                                  }
+                                }}
+                                series={[{
+                                  name: 'Volume',
+                                  data: candlestickData.map(item => ({
+                                    x: new Date(item.date).getTime(),
+                                    y: item.volume
+                                  }))
+                                }]}
+                                type="bar"
+                                height={100}
+                              />
+                            </div>
+                          </div>
+                        );
+                      } catch (error) {
+                        console.error('Erro no ApexCharts, usando Recharts como fallback:', error);
+                        setUseApexCharts(false);
+                      }
+                    }
+
+                    // Fallback com Recharts
+                    return (
+                      <div className="w-full space-y-4">
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={candlestickData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis 
+                                dataKey="date" 
+                                tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                tick={{ fontSize: 12 }}
+                              />
+                              <YAxis 
+                                tickFormatter={(value) => formatCurrency(value)}
+                                tick={{ fontSize: 12 }}
+                              />
+                              <Tooltip 
+                                content={({ active, payload, label }) => {
+                                  if (active && payload && payload.length > 0) {
+                                    const data = payload[0].payload;
+                                    return (
+                                      <div className="bg-white border rounded-lg shadow-lg p-3">
+                                        <p className="font-semibold">{new Date(label).toLocaleDateString('pt-BR')}</p>
+                                        <div className="space-y-1 text-sm">
+                                          <p>Fechamento: <span className="font-medium">{formatCurrency(data.close)}</span></p>
+                                          <p>Volume: <span className="font-medium">{formatVolume(data.volume)}</span></p>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                              />
+                              
+                              {/* Linha de fechamento */}
+                              <Line 
+                                type="monotone" 
+                                dataKey="close" 
+                                stroke="#3b82f6" 
+                                strokeWidth={2}
+                                dot={false}
+                                name="Preço"
+                              />
+                              
+                              {/* Médias Móveis */}
+                              <Line 
+                                type="monotone" 
+                                dataKey="sma20" 
+                                stroke="#10b981" 
+                                strokeWidth={2}
+                                dot={false}
+                                name="SMA 20"
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="sma50" 
+                                stroke="#f59e0b" 
+                                strokeWidth={2}
+                                dot={false}
+                                name="SMA 50"
+                              />
+
+                              {/* Linhas de suporte */}
+                              {suportes.map((valor, idx) => (
+                                <ReferenceLine 
+                                  key={`suporte-${idx}`} 
+                                  y={valor} 
+                                  stroke="#3b82f6" 
+                                  strokeDasharray="3 3" 
+                                  label={{ value: `S${idx + 1}`, position: 'right' }}
+                                />
+                              ))}
+                              
+                              {/* Linhas de resistência */}
+                              {resistencias.map((valor, idx) => (
+                                <ReferenceLine 
+                                  key={`resistencia-${idx}`} 
+                                  y={valor} 
+                                  stroke="#ef4444" 
+                                  strokeDasharray="3 3" 
+                                  label={{ value: `R${idx + 1}`, position: 'right' }}
+                                />
+                              ))}
+                              
+                              {/* Preço médio da carteira */}
+                              {precoMedioCarteira && (
+                                <ReferenceLine 
+                                  y={precoMedioCarteira} 
+                                  stroke="#f59e0b" 
+                                  strokeDasharray="2 2"
+                                  strokeWidth={3}
+                                  label={{ value: "Preço Médio", position: "insideTopLeft" }}
+                                />
+                              )}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                        
+                        <div className="flex items-center justify-center">
+                          <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                            Usando gráfico de linha simplificado
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-0.5 bg-red-600" style={{ borderTop: '2px dashed' }}></div>
-                        <span>Resistências</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-indigo-500"></div>
-                        <span>MACD</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-500 opacity-30"></div>
-                        <span>Volume</span>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               </>
             )}

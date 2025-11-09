@@ -1,123 +1,123 @@
-# IBOV Control - Sistema de Monitoramento e Gestão de Investimentos
+# IBOV Control - Investment Monitoring and Management System
 
-## 📌 Sobre o Projeto
+## 📌 About the Project
 
-O IBOV Control é uma plataforma web completa para acompanhamento e gestão de investimentos na bolsa de valores brasileira. O sistema permite monitorar ativos em tempo real, gerenciar carteiras de investimentos, visualizar análises técnicas com suportes e resistências, e acompanhar operações detalhadas.
+IBOV Control is a comprehensive web platform for tracking and managing investments in the Brazilian stock market. The system allows real-time asset monitoring, portfolio management, technical analysis visualization with support and resistance levels, and detailed operation tracking.
 
-## 🎯 Funcionalidades Principais
+## 🎯 Main Features
 
-### 📊 Dashboard da Bolsa (/dashboard)
-- **Resumo do Mercado**: Estatísticas em tempo real (total de ativos, média de variação, ativos em alta/baixa)
-- **Visualização Flexível**: Alterne entre visualização em tabela ou cards
-- **Análise Técnica**: Indicadores de suportes e resistências com status visual (Forte Suporte, Suporte, Neutro, Resistência, Forte Resistência)
-- **Busca Avançada**: Filtros por código, nome, variação e volume
-- **Ordenação Inteligente**: Ordene por qualquer critério (preço, variação, volume, etc.)
-- **Atualização em Tempo Real**: Dados sincronizados com Google Sheets
+### 📊 Market Dashboard (/dashboard)
+- **Market Overview**: Real-time statistics (total assets, average variation, assets in gain/loss)
+- **Flexible Visualization**: Toggle between table and card views
+- **Technical Analysis**: Support and resistance indicators with visual status (Strong Support, Support, Neutral, Resistance, Strong Resistance)
+- **Advanced Search**: Filters by ticker, name, variation, and volume
+- **Smart Sorting**: Sort by any criteria (price, variation, volume, etc.)
+- **Real-Time Updates**: Data synchronized with Google Sheets
 
-### 💼 Gestão de Carteira (/carteira)
-- **Carteira Personalizada**: Acompanhe seus ativos com preço médio e quantidade
-- **Registro de Operações**: Histórico completo de compras e vendas com observações
-- **Análise de Performance**:
-  - Cálculo automático de lucro/prejuízo em R$ e %
-  - Valor total investido vs. valor atual
-  - Retorno total da carteira
-- **Indicadores Visuais**: Status de cada ativo em relação aos suportes e resistências
-- **Gestão Completa**: Adicione, edite, remova ativos e registre operações
+### 💼 Portfolio Management (/carteira)
+- **Personalized Portfolio**: Track your assets with average price and quantity
+- **Operations Log**: Complete history of purchases and sales with notes
+- **Performance Analysis**:
+  - Automatic profit/loss calculation in BRL and %
+  - Total invested vs. current value
+  - Total portfolio return
+- **Visual Indicators**: Status of each asset in relation to support and resistance levels
+- **Complete Management**: Add, edit, remove assets and record operations
 
-### 🛠️ Painel Administrativo (/admin)
-- **Gerenciamento de Usuários**: Visualize e altere perfis de acesso
-- **Configuração de Análise Técnica**:
-  - Defina 3 níveis de suporte e 3 de resistência para cada ativo
-  - Adicione observações e justificativas para cada nível
-  - Controle de quem modificou e quando
-- **Interface Intuitiva**: Edição inline dos valores técnicos
-- **Controle de Acesso**: Restrito apenas a administradores
+### 🛠️ Admin Panel (/admin)
+- **User Management**: View and modify access profiles
+- **Technical Analysis Configuration**:
+  - Define 3 support levels and 3 resistance levels for each asset
+  - Add observations and justifications for each level
+  - Track who modified and when
+- **Intuitive Interface**: Inline editing of technical values
+- **Access Control**: Restricted to administrators only
 
-## 📄 Estrutura da Planilha
+## 📄 Spreadsheet Structure
 
-A planilha do Google Sheets deve conter as seguintes colunas:
+The Google Sheets spreadsheet must contain the following columns:
 
-| Coluna | Descrição |
+| Column | Description |
 |--------|-----------|
-| SIGLA | Código da ação (ex: PETR4) |
-| REFERENCIA | Nome da empresa ou título (ex: Petrobras PN) |
-| PRECO ATUAL | Valor atual da ação |
-| VARIACAO | Diferença em relação ao dia anterior |
-| VARIAÇÃO PERCENTUAL | Variação em % |
-| VOLUME | Volume negociado no dia |
-| VALOR MERCADO | Valor de mercado total |
-| ULTIMA ATUALIZACAO | Data e hora da última atualização |
+| SIGLA | Stock ticker (e.g., PETR4) |
+| REFERENCIA | Company name or title (e.g., Petrobras PN) |
+| PRECO ATUAL | Current stock price |
+| VARIACAO | Difference from previous day |
+| VARIAÇÃO PERCENTUAL | Variation in % |
+| VOLUME | Trading volume for the day |
+| VALOR MERCADO | Total market value |
+| ULTIMA ATUALIZACAO | Last update date and time |
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Technologies Used
 
 - **Frontend**: React 18 + TypeScript + Vite 5
 - **UI Components**: shadcn/ui (Radix UI) + Tailwind CSS
-- **Gráficos**: ApexCharts + Recharts
-- **Backend**: Supabase (autenticação, banco de dados PostgreSQL, RLS)
-- **Estado Global**: React Query (TanStack Query v5)
-- **Roteamento**: React Router DOM v6
-- **Fonte de Dados**: Google Sheets API (integração em tempo real)
-- **Validação**: Zod + React Hook Form
-- **Formatação de Datas**: date-fns
+- **Charts**: ApexCharts + Recharts
+- **Backend**: Supabase (authentication, PostgreSQL database, RLS)
+- **Global State**: React Query (TanStack Query v5)
+- **Routing**: React Router DOM v6
+- **Data Source**: Google Sheets API (real-time integration)
+- **Validation**: Zod + React Hook Form
+- **Date Formatting**: date-fns
 
-## 🚀 Configuração e Instalação
+## 🚀 Setup and Installation
 
-### Pré-requisitos
-- Node.js 18+ e npm
-- Conta no Supabase
-- Planilha do Google Sheets configurada
+### Prerequisites
+- Node.js 18+ and npm
+- Supabase account
+- Configured Google Sheets spreadsheet
 
-### Passos de Instalação
+### Installation Steps
 
-1. **Clone o repositório**
+1. **Clone the repository**
 ```bash
-git clone <URL_DO_REPOSITORIO>
+git clone <REPOSITORY_URL>
 cd ibovcontrol
 ```
 
-2. **Instale as dependências**
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-3. **Configure as variáveis de ambiente**
+3. **Configure environment variables**
 ```bash
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` com suas credenciais:
+Edit the `.env` file with your credentials:
 ```env
 # Supabase
-VITE_SUPABASE_URL=sua_url_do_supabase
-VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Google Sheets (opcional)
-VITE_GOOGLE_API_KEY=sua_chave_api_do_google
+# Google Sheets (optional)
+VITE_GOOGLE_API_KEY=your_google_api_key
 ```
 
-4. **Configure o Supabase**
-- Crie um projeto no [Supabase](https://supabase.com)
-- Execute o script SQL `supabase-setup.sql` no SQL Editor
-- Configure as políticas de segurança (Row Level Security)
+4. **Configure Supabase**
+- Create a project on [Supabase](https://supabase.com)
+- Execute the SQL script `supabase_setup.sql` in the SQL Editor
+- Configure security policies (Row Level Security)
 
-5. **Configure a Planilha do Google Sheets**
-- Crie uma planilha com a estrutura especificada acima
-- Torne a planilha pública ou configure uma API key
-- Atualize o `SPREADSHEET_ID` no arquivo `src/services/googleSheets.ts`
+5. **Configure Google Sheets**
+- Create a spreadsheet with the structure specified above
+- Make the spreadsheet public or configure an API key
+- Update the `SPREADSHEET_ID` in the `src/services/googleSheets.ts` file
 
-6. **Execute o projeto**
+6. **Run the project**
 ```bash
 npm run dev
 ```
 
-## 🗄️ Estrutura do Banco de Dados
+## 🗄️ Database Structure
 
-### Sistema de Cargos
-O sistema utiliza o campo `raw_user_meta_data` da tabela `auth.users` do Supabase para armazenar o cargo do usuário:
-- **cliente**: Usuário padrão com acesso às funcionalidades básicas
-- **admin**: Administrador com acesso ao painel administrativo
+### Role System
+The system uses the `raw_user_meta_data` field from Supabase's `auth.users` table to store user roles:
+- **cliente**: Standard user with access to basic features
+- **admin**: Administrator with access to the admin panel
 
-### Tabela `carteira`
+### `carteira` Table
 ```sql
 CREATE TABLE carteira (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -131,116 +131,116 @@ CREATE TABLE carteira (
 );
 ```
 
-### Políticas de Segurança
-- Cada usuário só pode ver e modificar seus próprios dados
-- Autenticação obrigatória para todas as operações
-- Triggers automáticos para timestamps
+### Security Policies
+- Each user can only view and modify their own data
+- Authentication required for all operations
+- Automatic triggers for timestamps
 
-## 🔧 Configuração da Planilha
+## 🔧 Spreadsheet Configuration
 
-### Método 1: Planilha Pública
-1. Crie a planilha no Google Sheets
-2. Clique em "Compartilhar" → "Qualquer pessoa com o link pode visualizar"
-3. Copie o ID da planilha da URL
-4. O sistema usará o método público para buscar os dados
+### Method 1: Public Spreadsheet
+1. Create the spreadsheet in Google Sheets
+2. Click "Share" → "Anyone with the link can view"
+3. Copy the spreadsheet ID from the URL
+4. The system will use the public method to fetch data
 
-### Método 2: API Key (Recomendado)
-1. Crie um projeto no Google Cloud Console
-2. Ative a Google Sheets API
-3. Crie uma API Key
-4. Adicione a chave no arquivo `.env`
-5. O sistema usará a API oficial para buscar os dados
+### Method 2: API Key (Recommended)
+1. Create a project in Google Cloud Console
+2. Enable the Google Sheets API
+3. Create an API Key
+4. Add the key to the `.env` file
+5. The system will use the official API to fetch data
 
-## 📱 Funcionalidades Implementadas
+## 📱 Implemented Features
 
-### Dashboard da Bolsa ✅
-- ✅ Exibição de todos os ativos sincronizados do Google Sheets
-- ✅ Cards de estatísticas em tempo real (total de ativos, média de variação, ativos em alta/baixa)
-- ✅ Duas visualizações: tabela completa e cards visuais
-- ✅ Sistema de análise técnica com suportes e resistências
-- ✅ Indicadores visuais de status (Forte Suporte → Forte Resistência)
-- ✅ Busca inteligente por código ou nome
-- ✅ Ordenação múltipla (sigla, preço, variação, volume)
-- ✅ Layout totalmente responsivo
-- ✅ Atualização manual sob demanda
-- ✅ Formatação brasileira de valores (R$, %, volume)
+### Market Dashboard ✅
+- ✅ Display all assets synchronized from Google Sheets
+- ✅ Real-time statistics cards (total assets, average variation, assets in gain/loss)
+- ✅ Two views: complete table and visual cards
+- ✅ Technical analysis system with support and resistance
+- ✅ Visual status indicators (Strong Support → Strong Resistance)
+- ✅ Smart search by ticker or name
+- ✅ Multiple sorting options (ticker, price, variation, volume)
+- ✅ Fully responsive layout
+- ✅ On-demand manual updates
+- ✅ Brazilian value formatting (R$, %, volume)
 
-### Minha Carteira ✅
-- ✅ Sistema de autenticação completo via Supabase
-- ✅ Adicionar múltiplos ativos com quantidade e preço médio
-- ✅ Histórico completo de operações (compra/venda)
-- ✅ Campo de observações para cada operação
-- ✅ Cálculo automático de rentabilidade por ativo e total
-- ✅ Cards visuais com status técnico de cada ativo
-- ✅ Resumo financeiro detalhado (investido, atual, lucro/prejuízo)
-- ✅ Gestão completa: adicionar, editar, remover ativos e operações
-- ✅ Integração em tempo real com preços atualizados
-- ✅ Visualização de suportes e resistências na carteira
+### Portfolio ✅
+- ✅ Complete authentication system via Supabase
+- ✅ Add multiple assets with quantity and average price
+- ✅ Complete operations history (buy/sell)
+- ✅ Notes field for each operation
+- ✅ Automatic profitability calculation per asset and total
+- ✅ Visual cards with technical status of each asset
+- ✅ Detailed financial summary (invested, current, profit/loss)
+- ✅ Complete management: add, edit, remove assets and operations
+- ✅ Real-time integration with updated prices
+- ✅ Support and resistance visualization in portfolio
 
-### Painel Administrativo ✅
-- ✅ Autenticação com controle de acesso por perfil (apenas admins)
-- ✅ Gerenciamento completo de usuários
-- ✅ Alteração de perfis de acesso (cliente/admin)
-- ✅ Configuração de análise técnica para cada ativo:
-  - 3 níveis de suporte
-  - 3 níveis de resistência
-  - Campo de observações/motivo para cada nível
-- ✅ Edição inline dos valores técnicos
-- ✅ Sistema de auditoria (usuário e data de modificação)
-- ✅ Interface administrativa intuitiva e profissional
+### Admin Panel ✅
+- ✅ Authentication with profile-based access control (admins only)
+- ✅ Complete user management
+- ✅ Access profile modification (client/admin)
+- ✅ Technical analysis configuration for each asset:
+  - 3 support levels
+  - 3 resistance levels
+  - Notes/reason field for each level
+- ✅ Inline editing of technical values
+- ✅ Audit system (user and modification date)
+- ✅ Intuitive and professional admin interface
 
-## 🔒 Segurança
+## 🔒 Security
 
-- **Autenticação**: Supabase Auth com email/senha
-- **Autorização**: Row Level Security no banco de dados
-- **Validação**: Validação de dados no frontend e backend
-- **HTTPS**: Todas as comunicações são criptografadas
-- **Rate Limiting**: Proteção contra abuso da API
+- **Authentication**: Supabase Auth with email/password
+- **Authorization**: Row Level Security in the database
+- **Validation**: Data validation on frontend and backend
+- **HTTPS**: All communications are encrypted
+- **Rate Limiting**: Protection against API abuse
 
-## 🚀 Deploy
+## 🚀 Deployment
 
-### Deploy no Lovable
-1. Acesse [Lovable](https://lovable.dev)
-2. Conecte seu repositório
-3. Configure as variáveis de ambiente
-4. Clique em "Publish"
+### Deploy on Lovable
+1. Access [Lovable](https://lovable.dev)
+2. Connect your repository
+3. Configure environment variables
+4. Click "Publish"
 
-### Deploy Manual
+### Manual Deploy
 ```bash
 npm run build
-# Faça upload dos arquivos da pasta dist/ para seu servidor
+# Upload the files from the dist/ folder to your server
 ```
 
-## 📞 Suporte
+## 📞 Support
 
-Para dúvidas ou problemas:
-1. Verifique a documentação do Supabase
-2. Consulte os logs do console do navegador
-3. Verifique se a planilha está acessível
-4. Confirme se as variáveis de ambiente estão corretas
+For questions or issues:
+1. Check the Supabase documentation
+2. Check browser console logs
+3. Verify the spreadsheet is accessible
+4. Confirm environment variables are correct
 
-## 🎨 Destaques da Interface
+## 🎨 Interface Highlights
 
-- **Design Moderno**: Interface clean e profissional com shadcn/ui
-- **Dark Mode**: Suporte completo a tema escuro (em desenvolvimento)
-- **Responsividade**: Funciona perfeitamente em mobile, tablet e desktop
-- **Feedback Visual**: Toasts, badges coloridos e indicadores de status
-- **Performance**: Carregamento otimizado com React Query e cache inteligente
-- **Acessibilidade**: Componentes acessíveis com Radix UI
+- **Modern Design**: Clean and professional interface with shadcn/ui
+- **Dark Mode**: Full dark theme support (in development)
+- **Responsiveness**: Works perfectly on mobile, tablet, and desktop
+- **Visual Feedback**: Toasts, colored badges, and status indicators
+- **Performance**: Optimized loading with React Query and smart caching
+- **Accessibility**: Accessible components with Radix UI
 
-## 🔄 Roadmap - Próximas Funcionalidades
+## 🔄 Roadmap - Upcoming Features
 
-- [ ] Gráficos interativos de candlestick para análise histórica
-- [ ] Sistema de alertas de preço por email/notificação
-- [ ] Dashboard com gráficos de performance da carteira
-- [ ] Análise técnica automática (médias móveis, RSI, MACD)
-- [ ] Exportação de relatórios em PDF/Excel
-- [ ] Sistema de notificações push
-- [ ] Integração com B3 e outras fontes de dados
-- [ ] Modo escuro (dark mode)
-- [ ] App mobile com React Native
-- [ ] API pública para desenvolvedores
+- [ ] Interactive candlestick charts for historical analysis
+- [ ] Price alert system via email/notification
+- [ ] Dashboard with portfolio performance charts
+- [ ] Automatic technical analysis (moving averages, RSI, MACD)
+- [ ] PDF/Excel report export
+- [ ] Push notification system
+- [ ] Integration with B3 and other data sources
+- [ ] Dark mode
+- [ ] Mobile app with React Native
+- [ ] Public API for developers
 
 ---
 
-**Desenvolvido com ❤️ para a comunidade de investidores brasileiros**
+**Developed with ❤️ for the Brazilian investor community**

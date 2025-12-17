@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { apiClient } from '@/lib/apiClient'
 
 export type UserRole = 'cliente' | 'admin'
 
@@ -6,18 +6,17 @@ export interface User {
   id: string
   email: string
   role: UserRole
-  created_at: string
+  created_at?: string
+  createdAt?: string
   last_sign_in_at?: string
+  lastSignInAt?: string
 }
 
 // Função para obter o cargo do usuário atual
 export const getUserRole = async (): Promise<UserRole | null> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-
-    const role = user.user_metadata?.role as UserRole
-    return role || 'cliente' // Padrão é cliente
+    const response = await apiClient.get<{ role: UserRole }>('/users/role')
+    return response.role
   } catch (error) {
     console.error('Erro ao obter cargo do usuário:', error)
     return null
@@ -50,16 +49,7 @@ export const isUserClient = async (): Promise<boolean> => {
 export const updateUserRole = async (userId: string, newRole: UserRole): Promise<boolean> => {
   try {
     console.log('Iniciando atualização de cargo:', { userId, newRole })
-    
-    // Verificar se o usuário atual é admin
-    const isAdmin = await isUserAdmin()
-    console.log('Usuário atual é admin?', isAdmin)
-    
-    if (!isAdmin) {
-      throw new Error('Apenas administradores podem alterar cargos')
-    }
 
-    // Verificar se os parâmetros são válidos
     if (!userId || !newRole) {
       throw new Error('Parâmetros inválidos: userId e newRole são obrigatórios')
     }
@@ -68,43 +58,10 @@ export const updateUserRole = async (userId: string, newRole: UserRole): Promise
       throw new Error('Cargo inválido. Use "cliente" ou "admin"')
     }
 
-    console.log('Chamando função RPC update_user_role...')
-    
-    // Tentar primeiro com a função principal
-    try {
-      const { data, error } = await supabase.rpc('update_user_role', {
-        target_user_id: userId,
-        new_role: newRole
-      })
+    await apiClient.put('/users/update-role', { userId, newRole })
 
-      console.log('Resposta da função RPC principal:', { data, error })
-
-      if (error) {
-        console.error('Erro na função RPC principal:', error)
-        throw error
-      }
-
-      console.log('Cargo atualizado com sucesso usando função principal:', data)
-      return data
-    } catch (primaryError) {
-      console.log('Função principal falhou, tentando função alternativa...')
-      
-      // Se a função principal falhar, tentar com a função alternativa
-      const { data, error } = await supabase.rpc('update_user_role_simple', {
-        target_user_id: userId,
-        new_role: newRole
-      })
-
-      console.log('Resposta da função RPC alternativa:', { data, error })
-
-      if (error) {
-        console.error('Erro na função RPC alternativa:', error)
-        throw new Error(`Erro do Supabase: ${error.message}`)
-      }
-
-      console.log('Cargo atualizado com sucesso usando função alternativa:', data)
-      return data
-    }
+    console.log('Cargo atualizado com sucesso')
+    return true
   } catch (error) {
     console.error('Erro ao atualizar cargo do usuário:', error)
     throw error
@@ -115,26 +72,11 @@ export const updateUserRole = async (userId: string, newRole: UserRole): Promise
 export const listUsers = async (): Promise<User[]> => {
   try {
     console.log('Iniciando listagem de usuários...')
-    
-    // Verificar se o usuário atual é admin
-    const isAdmin = await isUserAdmin()
-    console.log('Usuário é admin?', isAdmin)
-    
-    if (!isAdmin) {
-      throw new Error('Apenas administradores podem listar usuários')
-    }
 
-    // Usar a função RPC para listar usuários
-    console.log('Chamando função RPC list_users...')
-    const { data, error } = await supabase.rpc('list_users')
+    const response = await apiClient.get<{ users: User[] }>('/users/list')
 
-    if (error) {
-      console.error('Erro na função RPC list_users:', error)
-      throw error
-    }
-
-    console.log('Dados retornados da função RPC:', data)
-    return data || []
+    console.log('Dados retornados da API:', response.users)
+    return response.users || []
   } catch (error) {
     console.error('Erro ao listar usuários:', error)
     throw error
@@ -144,39 +86,10 @@ export const listUsers = async (): Promise<User[]> => {
 // Função para obter informações do usuário atual
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-
-    return {
-      id: user.id,
-      email: user.email || '',
-      role: user.user_metadata?.role || 'cliente',
-      created_at: user.created_at,
-      last_sign_in_at: user.last_sign_in_at
-    }
+    const response = await apiClient.get<{ user: User }>('/users/me')
+    return response.user
   } catch (error) {
     console.error('Erro ao obter usuário atual:', error)
     return null
-  }
-}
-
-// Função para definir cargo padrão para novos usuários
-export const setDefaultRole = async (): Promise<void> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // Se o usuário não tem cargo definido, definir como cliente
-    if (!user.user_metadata?.role) {
-      const { error } = await supabase.auth.updateUser({
-        data: { role: 'cliente' }
-      })
-
-      if (error) {
-        console.error('Erro ao definir cargo padrão:', error)
-      }
-    }
-  } catch (error) {
-    console.error('Erro ao definir cargo padrão:', error)
   }
 } 

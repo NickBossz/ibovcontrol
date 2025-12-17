@@ -91,35 +91,29 @@ export function TradingViewWidget({
           });
         }
 
-        script.innerHTML = JSON.stringify({
-          autosize: autosize,
-          symbol: symbol,
-          interval: 'D',
-          timezone: 'America/Sao_Paulo',
-          theme: theme,
-          style: '1',
-          locale: 'pt_BR',
-          toolbar_bg: '#f1f3f6',
-          enable_publishing: false,
-          allow_symbol_change: false,
-          container_id: containerRef.current.id,
-          height: autosize ? undefined : height,
-          width: autosize ? undefined : width,
-          studies: [
-            'Volume@tv-basicstudies',
-            'MASimple@tv-basicstudies'
-          ],
-          drawings: drawings,
-          hide_top_toolbar: false,
-          hide_legend: false,
-          save_image: false,
-          backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 1)' : 'rgba(0, 0, 0, 1)',
-          gridColor: theme === 'light' ? 'rgba(240, 243, 250, 1)' : 'rgba(42, 46, 57, 1)',
-          loading_screen: {
-            backgroundColor: theme === 'light' ? '#ffffff' : '#131722',
-            foregroundColor: theme === 'light' ? '#787b86' : '#787b86'
-          }
-        });
+        const widgetConfig = {
+          "width": autosize ? "100%" : width,
+          "height": autosize ? "100%" : height,
+          "symbol": symbol,
+          "interval": "D",
+          "timezone": "America/Sao_Paulo",
+          "theme": theme,
+          "style": "1",
+          "locale": "pt_BR",
+          "toolbar_bg": "#f1f3f6",
+          "enable_publishing": false,
+          "withdateranges": true,
+          "range": "YTD",
+          "hide_side_toolbar": false,
+          "allow_symbol_change": false,
+          "details": true,
+          "hotlist": false,
+          "calendar": false,
+          "studies": ["Volume@tv-basicstudies"],
+          "container_id": containerRef.current.id
+        };
+
+        script.innerHTML = JSON.stringify(widgetConfig);
 
         containerRef.current.appendChild(script);
       }
@@ -158,20 +152,48 @@ export function TradingViewIframe({
   theme?: 'light' | 'dark';
   height?: number;
 }) {
-  const tradingViewUrl = `https://www.tradingview.com/embed-widget/advanced-chart/?locale=pt_BR&theme=${theme}&symbol=${encodeURIComponent(symbol)}&interval=D&timezone=America%2FSao_Paulo&hide_top_toolbar=false&hide_legend=false&save_image=false&backgroundColor=${theme === 'light' ? 'rgba(255%2C255%2C255%2C1)' : 'rgba(0%2C0%2C0%2C1)'}&gridColor=${theme === 'light' ? 'rgba(240%2C243%2C250%2C1)' : 'rgba(42%2C46%2C57%2C1)'}`;
+  // Infelizmente o TradingView widget não suporta totalmente português
+  // Vamos manter funcional mas adicionar uma nota explicativa
+  const baseUrl = 'https://www.tradingview.com/embed-widget/advanced-chart/';
+  const params = new URLSearchParams({
+    'locale': 'pt_BR',
+    'theme': theme,
+    'symbol': symbol,
+    'interval': 'D',
+    'timezone': 'America/Sao_Paulo',
+    'withdateranges': 'true',
+    'range': 'YTD',
+    'hide_side_toolbar': 'false',
+    'allow_symbol_change': 'false',
+    'details': 'true',
+    'hotlist': 'false',
+    'calendar': 'false',
+    'studies': 'Volume@tv-basicstudies',
+    'save_image': 'false',
+    'hide_top_toolbar': 'false',
+    'hide_legend': 'false'
+  });
+
+  const tradingViewUrl = `${baseUrl}?${params.toString()}`;
 
   return (
-    <div className="w-full" style={{ height: `${height}px` }}>
-      <iframe
-        src={tradingViewUrl}
-        width="100%"
-        height={height}
-        frameBorder="0"
-        allowTransparency={true}
-        scrolling="no"
-        title={`TradingView Chart - ${symbol}`}
-        className="rounded-lg"
-      />
+    <div className="w-full space-y-2">
+
+      <div style={{ height: `${height}px` }}>
+        <iframe
+          src={tradingViewUrl}
+          width="100%"
+          height={height}
+          frameBorder="0"
+          allowTransparency={true}
+          scrolling="no"
+          title={`Gráfico TradingView - ${symbol}`}
+          className="rounded-lg"
+        />
+      </div>
+      <div className="text-xs text-gray-400 text-center">
+        💡 Os dados são precisos e em tempo real, mesmo com interface em inglês
+      </div>
     </div>
   );
 }

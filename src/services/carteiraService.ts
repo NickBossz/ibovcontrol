@@ -1,11 +1,18 @@
-import { supabase } from '@/lib/supabase'
-import type { Database } from '@/types/supabase'
+import { apiClient } from '@/lib/apiClient'
 
-type CarteiraRow = Database['public']['Tables']['carteira']['Row']
-type CarteiraInsert = Database['public']['Tables']['carteira']['Insert']
-type CarteiraUpdate = Database['public']['Tables']['carteira']['Update']
+export type AtivoCarteira = {
+  id: string
+  user_id: string
+  ativo_codigo: string
+  quantidade: number
+  preco_medio: number
+  data_compra: string
+  created_at: string
+  updated_at: string
+}
 
-export type AtivoCarteira = CarteiraRow
+type CarteiraInsert = Omit<AtivoCarteira, 'id' | 'created_at' | 'updated_at'>
+type CarteiraUpdate = Partial<Omit<AtivoCarteira, 'id' | 'user_id' | 'created_at'>>
 
 export interface CarteiraStats {
   totalInvested: number
@@ -18,16 +25,7 @@ export interface CarteiraStats {
 // Buscar todos os ativos da carteira do usuário
 export const fetchCarteira = async (userId: string): Promise<AtivoCarteira[]> => {
   try {
-    const { data, error } = await supabase
-      .from('carteira')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      throw error
-    }
-
+    const data = await apiClient.get<AtivoCarteira[]>(`/portfolio/assets`)
     return data || []
   } catch (error) {
     console.error('Erro ao buscar carteira:', error)
@@ -38,16 +36,7 @@ export const fetchCarteira = async (userId: string): Promise<AtivoCarteira[]> =>
 // Adicionar novo ativo à carteira
 export const addAtivoToCarteira = async (ativo: CarteiraInsert): Promise<AtivoCarteira> => {
   try {
-    const { data, error } = await supabase
-      .from('carteira')
-      .insert(ativo)
-      .select()
-      .single()
-
-    if (error) {
-      throw error
-    }
-
+    const data = await apiClient.post<AtivoCarteira>('/portfolio/assets', ativo)
     return data
   } catch (error) {
     console.error('Erro ao adicionar ativo à carteira:', error)
@@ -57,21 +46,11 @@ export const addAtivoToCarteira = async (ativo: CarteiraInsert): Promise<AtivoCa
 
 // Atualizar ativo na carteira
 export const updateAtivoInCarteira = async (
-  id: string, 
+  id: string,
   updates: CarteiraUpdate
 ): Promise<AtivoCarteira> => {
   try {
-    const { data, error } = await supabase
-      .from('carteira')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      throw error
-    }
-
+    const data = await apiClient.put<AtivoCarteira>('/portfolio/assets', { id, ...updates })
     return data
   } catch (error) {
     console.error('Erro ao atualizar ativo na carteira:', error)
@@ -82,14 +61,7 @@ export const updateAtivoInCarteira = async (
 // Remover ativo da carteira
 export const removeAtivoFromCarteira = async (id: string): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('carteira')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      throw error
-    }
+    await apiClient.delete(`/portfolio/assets?id=${id}`)
   } catch (error) {
     console.error('Erro ao remover ativo da carteira:', error)
     throw error

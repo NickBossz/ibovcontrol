@@ -5,7 +5,11 @@
       "Bash(npx tsc:*)",
       "Bash(npx eslint:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

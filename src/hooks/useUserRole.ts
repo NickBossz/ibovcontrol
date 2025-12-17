@@ -1,13 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { 
-  getUserRole, 
-  isUserAdmin, 
-  isUserClient, 
-  updateUserRole, 
-  listUsers, 
+import {
+  getUserRole,
+  isUserAdmin,
+  isUserClient,
+  updateUserRole,
+  listUsers,
   getCurrentUser,
-  setDefaultRole,
   type UserRole,
   type User
 } from '@/services/userService'
@@ -93,15 +92,5 @@ export const useUpdateUserRole = () => {
   })
 }
 
-// Hook para definir cargo padrão
-export const useSetDefaultRole = () => {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: setDefaultRole,
-    onSuccess: () => {
-      // Invalidar queries relacionadas ao usuário
-      queryClient.invalidateQueries({ queryKey: ['user'] })
-    },
-  })
-} 
+// Nota: setDefaultRole foi removido - o role padrão ('cliente')
+// é definido automaticamente no backend ao criar um novo usuário 

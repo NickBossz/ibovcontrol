@@ -36,10 +36,12 @@ export const fetchCarteira = async (userId: string): Promise<AtivoCarteira[]> =>
 // Adicionar novo ativo à carteira
 export const addAtivoToCarteira = async (ativo: CarteiraInsert): Promise<AtivoCarteira> => {
   try {
+    console.log('[addAtivoToCarteira] Enviando:', ativo)
     const data = await apiClient.post<AtivoCarteira>('/portfolio/assets', ativo)
+    console.log('[addAtivoToCarteira] Resposta recebida:', data)
     return data
   } catch (error) {
-    console.error('Erro ao adicionar ativo à carteira:', error)
+    console.error('[addAtivoToCarteira] Erro ao adicionar ativo à carteira:', error)
     throw error
   }
 }
@@ -151,17 +153,23 @@ export type OperacaoCarteira = {
 // Adicionar operação
 export const addOperacaoCarteira = async (operacao: OperacaoCarteira): Promise<OperacaoCarteira> => {
   try {
-    const data = await apiClient.post<any>('/portfolio/operations', {
+    console.log('[addOperacaoCarteira] Operação recebida:', operacao)
+    const payload = {
       assetCode: operacao.ativo_codigo, // Código do ativo (PETR4, etc)
       tipo_operacao: operacao.tipo_operacao,
       quantidade: operacao.quantidade,
       preco: operacao.preco,
       data_operacao: operacao.data_operacao,
       notes: null
-    })
+    }
+    console.log('[addOperacaoCarteira] Enviando payload:', payload)
+
+    const data = await apiClient.post<any>('/portfolio/operations', payload)
+
+    console.log('[addOperacaoCarteira] Resposta recebida:', data)
 
     // Mapear resposta para formato esperado
-    return {
+    const result = {
       id: data.id,
       user_id: operacao.user_id,
       ativo_codigo: operacao.ativo_codigo,
@@ -171,8 +179,11 @@ export const addOperacaoCarteira = async (operacao: OperacaoCarteira): Promise<O
       data_operacao: data.data_operacao,
       created_at: data.created_at
     }
+
+    console.log('[addOperacaoCarteira] Retornando:', result)
+    return result
   } catch (error) {
-    console.error('Erro ao adicionar operação:', error)
+    console.error('[addOperacaoCarteira] Erro ao adicionar operação:', error)
     throw error
   }
 };

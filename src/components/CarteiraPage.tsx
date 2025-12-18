@@ -122,15 +122,20 @@ export function CarteiraPage() {
       const userId = user?.id;
       if (!userId) return;
 
+      console.log('[handleAddAtivo] Iniciando adição de ativo:', { selectedAtivo: selectedAtivo.sigla, quantidade: quantidadeOperacao, preco: precoOperacao });
+
       // Apenas entrada para novo ativo
+      console.log('[handleAddAtivo] Chamando addAtivoMutation...');
       await addAtivoMutation.mutateAsync({
         ativo_codigo: selectedAtivo.sigla,
         quantidade: quantidadeOperacao,
         preco_medio: precoOperacao,
         data_compra: newAtivo.data_compra,
       });
+      console.log('[handleAddAtivo] Ativo adicionado com sucesso');
 
       // Registrar operação de entrada
+      console.log('[handleAddAtivo] Chamando addOperacaoCarteira...');
       await addOperacaoCarteira.mutateAsync({
         user_id: userId,
         ativo_codigo: selectedAtivo.sigla,
@@ -139,6 +144,7 @@ export function CarteiraPage() {
         preco: precoOperacao,
         data_operacao: dataOperacao,
       });
+      console.log('[handleAddAtivo] Operação adicionada com sucesso');
 
       toast({
         title: "Ativo adicionado",
@@ -154,6 +160,7 @@ export function CarteiraPage() {
       setSelectedAtivo(null);
       setIsAddDialogOpen(false);
     } catch (error) {
+      console.error('[handleAddAtivo] Erro capturado:', error);
       toast({
         title: "Erro",
         description: "Erro ao adicionar ativo à carteira",

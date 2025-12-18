@@ -1,45 +1,55 @@
 # Guia de Configuração de Desenvolvimento Local
 
-## Opção 1: Usando Vercel Dev (Recomendado)
+## Arquitetura
 
-O Vercel Dev roda o frontend e backend juntos, simulando o ambiente de produção.
+O projeto usa **Express.js dentro de uma Vercel Function** via `api/[...path].js`:
+- Todas as rotas da API são capturadas por esta função
+- O Express gerencia o roteamento interno
+- Controllers organizados em `lib/controllers/`
+- Rotas em `lib/routes/`
 
-### Instalação
+## Desenvolvimento Local - Vercel Dev (Recomendado)
+
+### Pré-requisitos
 ```bash
 npm install -g vercel
 ```
 
 ### Configuração
 1. Copie `.env.local.example` para `.env.local`
-2. Preencha as variáveis de ambiente no `.env.local`:
-   - `MONGODB_URI` - Sua connection string do MongoDB Atlas
+2. Preencha as variáveis:
+   - `MONGODB_URI` - Connection string do MongoDB Atlas
    - `MONGODB_DB` - Nome do banco (ibovcontrol)
-   - `JWT_SECRET` - Chave secreta (mínimo 32 caracteres)
+   - `JWT_SECRET` - Chave secreta (32+ caracteres)
 
 ### Executar
 ```bash
 vercel dev
 ```
 
-O servidor estará disponível em `http://localhost:3000`
+Acesse: `http://localhost:3000`
 
----
+## Rotas da API
 
-## Opção 2: Frontend e Backend Separados
+Todas as rotas começam com `/api/`:
 
-### Backend (API)
-Para rodar apenas o backend em desenvolvimento, você precisa de um servidor Node.js que execute as funções serverless localmente.
+### Auth (Públicas)
+- `POST /api/auth/login`
+- `POST /api/auth/signup`
+- `POST /api/auth/logout`
+- `POST /api/auth/reset-password`
 
-**Recomendação:** Use o Vercel Dev (Opção 1) em vez disso, pois é muito mais simples.
+### Users (Autenticadas)
+- `GET /api/users/me` - Dados do usuário atual
+- `GET /api/users/role` - Role do usuário
+- `GET /api/users/list` - Lista usuários (admin)
+- `PUT /api/users/update-role` - Atualiza role (admin)
 
-### Frontend
-```bash
-npm run dev
-```
+### Portfolio (Autenticadas)
+- `GET /api/portfolio/assets`
 
-O frontend estará em `http://localhost:8080` e fará proxy das requisições `/api/*` para `http://localhost:3000` (configurado no `vite.config.ts`).
-
-**Nota:** Você ainda precisará do backend rodando em `localhost:3000` para que as APIs funcionem.
+### Support/Resistance (Autenticadas)
+- `GET /api/support-resistance/list`
 
 ---
 

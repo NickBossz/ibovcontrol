@@ -5,7 +5,7 @@ import { requireAuth, requireAdmin, setCorsHeaders, type AuthRequest } from '../
 import type { SupportResistanceLevel } from '../../lib/types.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
-  setCorsHeaders(res)
+  setCorsHeaders(res, req)
 
   if (req.method === 'GET') {
     return handleGet(req, res)

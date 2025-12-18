@@ -5,7 +5,7 @@ import { requireAuth, setCorsHeaders, type AuthRequest } from '../../lib/middlew
 import type { PortfolioAsset } from '../../lib/types.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
-  setCorsHeaders(res)
+  setCorsHeaders(res, req)
 
   if (req.method === 'GET') {
     return handleGet(req, res)

@@ -42,9 +42,12 @@ export const requireAdmin = (handler: Handler): Handler => {
   })
 }
 
-export const setCorsHeaders = (res: VercelResponse) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080'
-  res.setHeader('Access-Control-Allow-Origin', frontendUrl)
+export const setCorsHeaders = (res: VercelResponse, req?: VercelRequest) => {
+  // Em produção (Vercel), frontend e backend estão no mesmo domínio
+  // Em desenvolvimento, usa a origem do request ou localhost
+  const origin = req?.headers.origin || 'http://localhost:8080'
+
+  res.setHeader('Access-Control-Allow-Origin', origin)
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Credentials', 'true')

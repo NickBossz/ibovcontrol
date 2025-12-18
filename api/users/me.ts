@@ -5,7 +5,7 @@ import { requireAuth, setCorsHeaders, type AuthRequest } from '../../lib/middlew
 import type { User } from '../../lib/types.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
-  setCorsHeaders(res)
+  setCorsHeaders(res, req)
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })

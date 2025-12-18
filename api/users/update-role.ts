@@ -4,7 +4,7 @@ import { getCollection } from '../../lib/mongodb.js'
 import { requireAdmin, setCorsHeaders, type AuthRequest } from '../../lib/middleware.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
-  setCorsHeaders(res)
+  setCorsHeaders(res, req)
 
   if (req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' })

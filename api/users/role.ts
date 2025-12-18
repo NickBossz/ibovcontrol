@@ -1,5 +1,5 @@
 import type { VercelResponse } from '@vercel/node'
-import { requireAuth, setCorsHeaders, type AuthRequest } from '../lib/middleware'
+import { requireAuth, setCorsHeaders, type AuthRequest } from '../../lib/middleware.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
   setCorsHeaders(res)

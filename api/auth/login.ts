@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getCollection } from '../lib/mongodb'
-import { comparePassword, signToken } from '../lib/auth'
-import { setCorsHeaders } from '../lib/middleware'
-import type { User } from '../lib/types'
+import { getCollection } from '../../lib/mongodb.js'
+import { comparePassword, signToken } from '../../lib/auth.js'
+import { setCorsHeaders } from '../../lib/middleware.js'
+import type { User } from '../../lib/types.js'
 
 export default async function handler(
   req: VercelRequest,

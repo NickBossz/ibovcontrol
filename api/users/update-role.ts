@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node'
 import { ObjectId } from 'mongodb'
-import { getCollection } from '../lib/mongodb'
-import { requireAdmin, setCorsHeaders, type AuthRequest } from '../lib/middleware'
+import { getCollection } from '../../lib/mongodb.js'
+import { requireAdmin, setCorsHeaders, type AuthRequest } from '../../lib/middleware.js'
 
 async function handler(req: AuthRequest, res: VercelResponse) {
   setCorsHeaders(res)

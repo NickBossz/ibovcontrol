@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getCollection } from '../lib/mongodb'
-import { setCorsHeaders } from '../lib/middleware'
+import { getCollection } from '../../lib/mongodb.js'
+import { setCorsHeaders } from '../../lib/middleware.js'
 
 export default async function handler(
   req: VercelRequest,

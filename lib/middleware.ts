@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { verifyToken } from './auth'
-import type { JWTPayload } from './types'
+import { verifyToken } from './auth.js'
+import type { JWTPayload } from './types.js'
 
 export interface AuthRequest extends VercelRequest {
   user?: JWTPayload

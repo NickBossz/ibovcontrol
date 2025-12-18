@@ -189,14 +189,16 @@ export const addOperacaoCarteira = async (operacao: OperacaoCarteira): Promise<O
 };
 
 // Buscar operações de um ativo
-export const fetchOperacoesCarteira = async (assetId: string): Promise<OperacaoCarteira[]> => {
+export const fetchOperacoesCarteira = async (assetCode: string): Promise<OperacaoCarteira[]> => {
   try {
-    const data = await apiClient.get<any[]>(`/portfolio/operations?assetId=${assetId}`)
+    console.log('[fetchOperacoesCarteira] Buscando operações para:', assetCode)
+    const data = await apiClient.get<any[]>(`/portfolio/operations?assetCode=${assetCode}`)
+    console.log('[fetchOperacoesCarteira] Operações recebidas:', data)
     // Mapear resposta da API para o formato esperado pelo frontend
     return data.map(op => ({
       id: op.id,
       user_id: '', // Não retornado pela API
-      ativo_codigo: '', // Não retornado pela API
+      ativo_codigo: assetCode, // Usar o código que foi buscado
       tipo_operacao: op.tipo_operacao,
       quantidade: op.quantidade,
       preco: op.preco,
@@ -204,7 +206,7 @@ export const fetchOperacoesCarteira = async (assetId: string): Promise<OperacaoC
       created_at: op.created_at
     }))
   } catch (error) {
-    console.error('Erro ao buscar operações:', error)
+    console.error('[fetchOperacoesCarteira] Erro ao buscar operações:', error)
     return []
   }
 };

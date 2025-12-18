@@ -155,7 +155,7 @@ export const useOperacoesCarteira = (ativoCodigo: string) => {
     queryKey: ['carteira_operacoes', user?.id, ativoCodigo],
     queryFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-      return await fetchOperacoesCarteira(user.id, ativoCodigo);
+      return await fetchOperacoesCarteira(ativoCodigo);
     },
     enabled: !!user?.id && !!ativoCodigo,
     staleTime: 60000,

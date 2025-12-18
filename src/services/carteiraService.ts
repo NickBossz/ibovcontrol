@@ -150,29 +150,52 @@ export type OperacaoCarteira = {
 
 // Adicionar operação
 export const addOperacaoCarteira = async (operacao: OperacaoCarteira): Promise<OperacaoCarteira> => {
-  const { data, error } = await supabase
-    .from('carteira_operacoes')
-    .insert(operacao)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    const data = await apiClient.post<any>('/portfolio/operations', {
+      assetCode: operacao.ativo_codigo, // Código do ativo (PETR4, etc)
+      tipo_operacao: operacao.tipo_operacao,
+      quantidade: operacao.quantidade,
+      preco: operacao.preco,
+      data_operacao: operacao.data_operacao,
+      notes: null
+    })
+
+    // Mapear resposta para formato esperado
+    return {
+      id: data.id,
+      user_id: operacao.user_id,
+      ativo_codigo: operacao.ativo_codigo,
+      tipo_operacao: data.tipo_operacao,
+      quantidade: data.quantidade,
+      preco: data.preco,
+      data_operacao: data.data_operacao,
+      created_at: data.created_at
+    }
+  } catch (error) {
+    console.error('Erro ao adicionar operação:', error)
+    throw error
+  }
 };
 
 // Buscar operações de um ativo
-export const fetchOperacoesCarteira = async (userId: string, ativoCodigo?: string): Promise<OperacaoCarteira[]> => {
-  let query = supabase
-    .from('carteira_operacoes')
-    .select('*')
-    .eq('user_id', userId);
-  
-  if (ativoCodigo) {
-    query = query.eq('ativo_codigo', ativoCodigo);
+export const fetchOperacoesCarteira = async (assetId: string): Promise<OperacaoCarteira[]> => {
+  try {
+    const data = await apiClient.get<any[]>(`/portfolio/operations?assetId=${assetId}`)
+    // Mapear resposta da API para o formato esperado pelo frontend
+    return data.map(op => ({
+      id: op.id,
+      user_id: '', // Não retornado pela API
+      ativo_codigo: '', // Não retornado pela API
+      tipo_operacao: op.tipo_operacao,
+      quantidade: op.quantidade,
+      preco: op.preco,
+      data_operacao: op.data_operacao,
+      created_at: op.created_at
+    }))
+  } catch (error) {
+    console.error('Erro ao buscar operações:', error)
+    return []
   }
-  
-  const { data, error } = await query.order('data_operacao', { ascending: true });
-  if (error) throw error;
-  return data || [];
 };
 
 // Calcular posição atual do ativo baseado nas operações
